@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <!-- PlantUML Next: the factory ("plant") of the original icon, on a dark
+       badge, with a "next" chevron instead of the smoke. -->
+  <circle cx="128" cy="128" r="124" fill="#0089c9"/>
+  <circle cx="128" cy="128" r="115" fill="#1d2633"/>
+
+  <!-- building: front wall and side wall -->
+  <polygon points="46,150 170,150 170,196 46,196" fill="#f4efe1"/>
+  <polygon points="170,150 198,136 198,182 170,196" fill="#c9c2ad"/>
+
+  <!-- sawtooth roof: each tooth has a lit slope and a shaded vertical face -->
+  <polygon points="46,150 46,112 77,150" fill="#e04a3f"/>
+  <polygon points="46,112 74,98 105,136 77,150" fill="#f06a5c"/>
+  <polygon points="77,150 77,112 108,150" fill="#f2b632"/>
+  <polygon points="77,112 105,98 136,136 108,150" fill="#f8cd5c"/>
+  <polygon points="108,150 108,112 139,150" fill="#3d7fd0"/>
+  <polygon points="108,112 136,98 167,136 139,150" fill="#5f9ae0"/>
+  <polygon points="139,150 139,112 170,150" fill="#7d43a6"/>
+  <polygon points="139,112 167,98 198,136 170,150" fill="#9862bf"/>
+
+  <!-- windows -->
+  <g fill="#1d2633">
+    <rect x="58" y="166" width="14" height="14" rx="2"/>
+    <rect x="89" y="166" width="14" height="14" rx="2"/>
+    <rect x="120" y="166" width="14" height="14" rx="2"/>
+    <rect x="151" y="166" width="12" height="14" rx="2"/>
+  </g>
+
+  <!-- chimney -->
+  <polygon points="180,62 194,55 194,140 180,147" fill="#c9c2ad"/>
+  <polygon points="166,69 180,62 180,147 166,154" fill="#f4efe1"/>
+  <polygon points="166,69 180,62 194,55 180,48" fill="#e9e3d2"/>
+
+  <!-- "next" chevrons -->
+  <polyline points="200,72 211,83 200,94" fill="none" stroke="#4fc3f7" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="213,72 224,83 213,94" fill="none" stroke="#4fc3f7" stroke-opacity="0.55" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
