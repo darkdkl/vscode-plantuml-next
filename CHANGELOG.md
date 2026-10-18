@@ -1,5 +1,10 @@
 # PlantUML Next Changelog
 
+## 2.19.3
+
+- Marketplace listing: install instructions, search keywords, banner color, questions go to GitHub issues
+- README: GraphViz isn't bundled, PlantUML uses its built-in layout without it
+
 ## 2.19.2
 
 - Remove PDF from the export formats of the local render: the bundled MIT build of PlantUML can't export PDF. PDF export with a PlantUML server still works
