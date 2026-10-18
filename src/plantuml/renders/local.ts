@@ -25,11 +25,11 @@ class LocalRender implements IRender {
      * @returns an array of supported formats
      */
     formats(): string[] {
+        // no "pdf": the bundled MIT build of PlantUML can't export PDF
         return [
             "png",
             "svg",
             "eps",
-            "pdf",
             "vdx",
             "xmi",
             "scxml",

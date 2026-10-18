@@ -22,7 +22,9 @@ Download `plantuml-next-<version>.vsix` from the [releases](https://github.com/d
 
 ### Bundled PlantUML
 
-The extension bundles the MIT licensed build of PlantUML. It leaves out PDF export, ditaa diagrams, the ELK layout (`!pragma layout elk`), QR codes and sudoku. To use them, download the full `plantuml.jar` from [plantuml.com](https://plantuml.com/download) and set `plantuml.jar` to it.
+The extension bundles the MIT licensed build of PlantUML. It leaves out ditaa diagrams, the ELK layout (`!pragma layout elk`) and sudoku. To use them, download the full `plantuml.jar` from [plantuml.com](https://plantuml.com/download) and set `plantuml.jar` to it.
+
+PDF export isn't available with the local render, since the MIT build can't export PDF. With a PlantUML server (`"plantuml.render": "PlantUMLServer"`) PDF export still works.
 
 ### Credits
 
