@@ -23,6 +23,21 @@
     "Snippets",
     "Other"
   ],
+  "keywords": [
+    "plantuml",
+    "uml",
+    "diagram",
+    "sequence diagram",
+    "class diagram",
+    "preview",
+    "mindmap",
+    "gantt"
+  ],
+  "galleryBanner": {
+    "color": "#1d2633",
+    "theme": "dark"
+  },
+  "qna": "https://github.com/darkdkl/vscode-plantuml-next/issues",
   "activationEvents": [
     "onLanguage:plantuml",
     "onCommand:plantuml.exportCurrent",

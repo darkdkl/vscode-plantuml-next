@@ -18,7 +18,9 @@ Settings and commands keep their `plantuml.` names, so your settings keep workin
 
 ### Install
 
-Download `plantuml-next-<version>.vsix` from the [releases](https://github.com/darkdkl/vscode-plantuml-next/releases), then run `code --install-extension plantuml-next-<version>.vsix`.
+Search for **PlantUML Next** in the Extensions view of VS Code, or run `code --install-extension dark-dmake.plantuml-next`.
+
+You can also download `plantuml-next-<version>.vsix` from the [releases](https://github.com/darkdkl/vscode-plantuml-next/releases), and run `code --install-extension plantuml-next-<version>.vsix`.
 
 ### Bundled PlantUML
 
@@ -123,8 +125,8 @@ brew install graphviz
 
 #### Quick Install for Windows
 
-The plugin has an integrated copy of plantuml.jar and GraphViz, so you are normally good to go. 
-But if you want to use your own jar or a different version of GraphViz (maybe a newer version, or with many dependent jars):
+The extension bundles `plantuml.jar`, so you only need Java. GraphViz isn't bundled: without it, PlantUML lays out diagrams with its built-in engine; install GraphViz for the classic layout.
+If you want to use your own jar or a different version of GraphViz (maybe a newer version, or with many dependent jars):
 
 - download the latest `plantuml.jar` or install it using chocolatey (see below). 
 - specify the jar location with the extension setting `plantuml.jar`.
