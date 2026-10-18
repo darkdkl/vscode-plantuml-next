@@ -5,12 +5,14 @@ import * as child_process from 'child_process';
 
 import { RenderTask } from '../plantuml/renders/interfaces'
 import { Diagram } from '../plantuml/diagram/diagram';
-import { diagramsOf, currentDiagram } from '../plantuml/diagram/tools';
+import { diagramsOf, currentDiagram, diagramAt } from '../plantuml/diagram/tools';
+import { SourceMap, SourceEntity } from '../plantuml/diagram/sourceMap';
 import { config } from '../plantuml/config';
 import { localize, extensionPath } from '../plantuml/common';
 import { parseError, calculateExportPath, addFileIndex, showMessagePanel, fileToBase64 } from '../plantuml/tools';
 import { exportToBuffer } from "../plantuml/exporter/exportToBuffer";
 import { UI } from '../ui/ui';
+import { warmProcesses } from '../plantuml/renders/warmProcess';
 
 enum previewStatus {
     default,
@@ -33,6 +35,19 @@ class Previewer extends vscode.Disposable {
     private error: string = "";
     private zoomUpperLimit: boolean = false;
 
+    // the page is loaded once, and then updated by "render" messages
+    private pageReady: boolean = false;
+    private pageSettings: string = "";
+    private lastRender: any = undefined;
+    private resetPageStatus: boolean = false;
+
+    // source navigation: the displayed diagram, by its document and index
+    // since its position changes with edits, and the elements of the shown page.
+    private displayed: { document: vscode.TextDocument, index: number } = undefined;
+    private sourceEntities: SourceEntity[] = [];
+    private sourceMap: { key: string, map: SourceMap } = undefined;
+    private highlighted: number = undefined;
+
     constructor() {
         super(() => this.dispose());
         this.register();
@@ -49,55 +64,95 @@ class Previewer extends vscode.Disposable {
         this.images = [];
         this.imageError = "";
         this.error = "";
+        this.resetPageStatus = true;
     }
 
     updateWebView(): string {
-        let env = {
-            localize: localize,
-            images: this.images.reduce((p, c) => {
-                if (c.startsWith('data:image/')) {
-                    return `${p}<img src="${c}">`
-                } else {
-                    return `${p}${c.replaceAll('<area ', '<area target="_blank"')}`
-                }
-            }, ""),
-            imageError: "",
+        let render = {
+            action: "render",
+            pages: <{ src: string, map?: string }[]>[],
             error: "",
-            status: this.previewPageStatus,
-            // nonce: Math.random().toString(36).substr(2),
-            icon: "file:///" + path.join(extensionPath, "images", "icon.png"),
-            settings: JSON.stringify({
-                zoomUpperLimit: this.zoomUpperLimit,
-                showSpinner: this.status === previewStatus.processing,
-                showSnapIndicators: config.previewSnapIndicators,
-                swapMouseButtons: config.previewSwapMouseButtons,
-            }),
+            imageError: "",
+            showSpinner: this.status === previewStatus.processing,
+            status: <string>undefined,
         };
         try {
             switch (this.status) {
                 case previewStatus.default:
                 case previewStatus.error:
-                    env.imageError = this.imageError;
-                    env.error = this.error.replace(/\n/g, "<br />");
-                    this._uiPreview.show("preview.html", env);
+                    render.pages = this.pagesOf(this.images);
+                    render.imageError = this.imageError;
+                    render.error = this.error;
                     break;
                 case previewStatus.processing:
-                    env.error = "";
-                    env.images = ["svg", "png"].reduce((p, c) => {
-                        if (p) return p;
-                        let exported = calculateExportPath(this.rendered, c);
+                    for (let format of ["svg", "png"]) {
+                        let exported = calculateExportPath(this.rendered, format);
                         exported = addFileIndex(exported, 0, this.rendered.pageCount);
-                        return fs.existsSync(exported) ? env.images = `<img src="${fileToBase64(exported)}">` : "";
-                    }, "");
-                    this._uiPreview.show("preview.html", env);
+                        if (!fs.existsSync(exported)) continue;
+                        render.pages = [{ src: fileToBase64(exported) }];
+                        break;
+                    }
                     break;
                 default:
-                    break;
+                    return;
             }
+            this.postRender(render);
         } catch (error) {
             return error
         }
     }
+    private pagesOf(images: string[]): { src: string, map?: string }[] {
+        // images are in order of [image1, ..., imageN, map1, ..., mapN]
+        let pages: { src: string, map?: string }[] = [];
+        let maps: string[] = [];
+        for (let c of images) {
+            if (c.startsWith('data:image/'))
+                pages.push({ src: c });
+            else
+                maps.push(c.replaceAll('<area ', '<area target="_blank" '));
+        }
+        pages.forEach((p, i) => p.map = maps[i]);
+        return pages;
+    }
+    private postRender(render: any) {
+        this.lastRender = render;
+        let settings = JSON.stringify({
+            zoomUpperLimit: this.zoomUpperLimit,
+            showSnapIndicators: config.previewSnapIndicators,
+            swapMouseButtons: config.previewSwapMouseButtons,
+        });
+        let env = {
+            localize: localize,
+            status: this.previewPageStatus,
+            settings: settings,
+        };
+        let loaded = this._uiPreview.open("preview.html", env);
+        if (!loaded && settings !== this.pageSettings) {
+            // settings are read by the page on load only
+            this._uiPreview.update("preview.html", env);
+            loaded = true;
+        }
+        if (loaded) {
+            // the render is sent once the page is ready
+            this.pageReady = false;
+            this.pageSettings = settings;
+            this.resetPageStatus = false;
+            return;
+        }
+        if (this.pageReady) this.sendRender(false);
+    }
+    private sendRender(pageLoaded: boolean) {
+        if (!this.lastRender) return;
+        let render = { ...this.lastRender };
+        if (pageLoaded)
+            // the page may be reloaded, restore its status
+            render.status = this.previewPageStatus;
+        else if (this.resetPageStatus)
+            render.status = "";
+        this.resetPageStatus = false;
+        this._uiPreview.postMessage(render);
+    }
+
     setUIStatus(status: string) {
         this.previewPageStatus = status;
     }
@@ -145,6 +200,7 @@ class Previewer extends vscode.Disposable {
             this.images = [];
             this.imageError = "";
             this.previewPageStatus = "";
+            this.resetPageStatus = true;
         }
         return changed;
     }
@@ -157,7 +213,11 @@ class Previewer extends vscode.Disposable {
             this.updateWebView();
             return;
         }
-        let task: RenderTask = exportToBuffer(diagram, "svg");
+        // the document may change while rendering
+        let source = { document: diagram.document, index: diagram.index };
+        // the preview shows SVG inline with its own links, so no image map is
+        // needed, which saves a second render (and JVM) per page.
+        let task: RenderTask = exportToBuffer(diagram, "svg", undefined, false);
         this.task = task;
 
         // console.log(`start pid ${this.task.processes.reduce((p, c) => p + " " + c.pid, "")}!`);
@@ -167,6 +227,7 @@ class Previewer extends vscode.Disposable {
                 if (task.canceled) return;
                 this.task = null;
                 this.status = previewStatus.default;
+                this.displayed = source;
 
                 this.error = "";
                 this.imageError = "";
@@ -244,12 +305,30 @@ class Previewer extends vscode.Disposable {
         this._uiPreview.addEventListener("message", e => {
             if (e.message.action == "openExternalLink") {
                 vscode.env.openExternal(e.message.href);
+            } else if (e.message.action == "ready") {
+                this.pageReady = true;
+                this.highlighted = undefined;
+                this.sendRender(true);
+            } else if (e.message.action == "revealSource") {
+                this.revealSource(e.message.line).catch(e => showMessagePanel(e));
+            } else if (e.message.action == "sourceEntities") {
+                // the page is switched or updated, and has no highlight
+                this.sourceEntities = e.message.entities || [];
+                this.sourceMap = undefined;
+                this.highlighted = undefined;
+                this.syncHighlight();
             } else {
                 this.setUIStatus(JSON.stringify(e.message));
             }
         });
         this._uiPreview.addEventListener("open", () => this.startWatch());
-        this._uiPreview.addEventListener("close", () => { this.stopWatch(); this.killTasks(); });
+        this._uiPreview.addEventListener("close", () => {
+            this.stopWatch();
+            this.killTasks();
+            this.pageReady = false;
+            // PlantUML processes are kept for the preview only
+            warmProcesses.dispose();
+        });
     }
     startWatch() {
         let disposable: vscode.Disposable;
@@ -271,6 +350,7 @@ class Previewer extends vscode.Disposable {
         });
         disposables.push(disposable);
         disposable = vscode.window.onDidChangeTextEditorSelection(e => {
+            this.syncHighlight();
             if (!config.previewAutoUpdate) return;
             lastTimestamp = new Date().getTime();
             setTimeout(() => {
@@ -283,6 +363,52 @@ class Previewer extends vscode.Disposable {
         disposables.push(disposable);
 
         this.watchDisposables = disposables;
+    }
+    private displayedDiagram(): Diagram {
+        if (!this.displayed) return undefined;
+        return diagramsOf(this.displayed.document)[this.displayed.index];
+    }
+    private sourceMapOf(diagram: Diagram): SourceMap {
+        let key = [diagram.document.uri.toString(), diagram.document.version, diagram.start.line].join(":");
+        if (!this.sourceMap || this.sourceMap.key !== key) {
+            this.sourceMap = {
+                key: key,
+                map: new SourceMap(diagram.document, diagram.start.line, diagram.end.line, this.sourceEntities),
+            };
+        }
+        return this.sourceMap.map;
+    }
+    // select the source of a diagram element, which is ctrl-clicked in the preview
+    private async revealSource(line: number) {
+        let diagram = this.displayedDiagram();
+        if (!diagram) return;
+        let range = this.sourceMapOf(diagram).rangeOf(diagram.document, line);
+        if (!range) return;
+        let visible = vscode.window.visibleTextEditors.find(e => e.document === diagram.document);
+        let editor = await vscode.window.showTextDocument(diagram.document, {
+            viewColumn: visible ? visible.viewColumn : vscode.ViewColumn.One,
+            selection: new vscode.Selection(range.start, range.end),
+        });
+        editor.revealRange(range, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
+    }
+    // highlight the diagram element defined at the cursor
+    private syncHighlight() {
+        if (!this.pageReady || !this.displayed) return;
+        let document = this.displayed.document;
+        let editor = vscode.window.activeTextEditor;
+        // the preview itself may have the focus
+        if (!editor || editor.document !== document)
+            editor = vscode.window.visibleTextEditors.find(e => e.document === document);
+        let line: number = undefined;
+        if (editor && this.sourceEntities.length) {
+            let cursor = editor.selection.active.line;
+            let diagram = diagramAt(document, cursor);
+            if (diagram && diagram.index === this.displayed.index)
+                line = this.sourceMapOf(diagram).lineOf(cursor);
+        }
+        if (line === this.highlighted) return;
+        this.highlighted = line;
+        this._uiPreview.postMessage({ action: "highlight", line: line === undefined ? -1 : line });
     }
     stopWatch() {
         for (let d of this.watchDisposables) {

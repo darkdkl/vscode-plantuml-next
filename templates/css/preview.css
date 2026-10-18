@@ -54,12 +54,26 @@ body.vscode-light {
     background-color: #f2f2f2;
 }
 
-#image {
+#image,
+.svg-image {
     background-color: #fff;
     /* box-shadow: 0px 0px 5px #999; */
     border-radius: 3px;
     max-width: none;
     max-height: none;
+}
+
+.svg-image {
+    display: inline-block;
+}
+
+/*
+ * zoom previews transform the container, see zoom.js. Keep it as a layer all
+ * the time: promoting / demoting it per gesture costs a main thread repaint
+ * of the whole SVG each time.
+ */
+#image-container {
+    will-change: transform;
 }
 
 .fixed-center {

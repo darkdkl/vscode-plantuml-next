@@ -5,6 +5,8 @@
     <script src="js/dragscroll.js"></script>
     <script src="js/hyperlink.js"></script>
     <script src="js/switcher.js"></script>
+    <script src="js/svgImage.js"></script>
+    <script src="js/sourceNav.js"></script>
     <script src="js/zoom.js"></script>
     <script src="js/imageMapResizer.js"></script>
     <script src="js/preview.js"></script>
@@ -82,8 +84,8 @@
     <div id="error-warning">
         <i class="material-icons">error</i>
         <div id="errmsg">
-            <p id="errtxt">${error}</p>
-            <img id="image-error" src="${imageError}" style="max-width: 100%;">
+            <p id="errtxt"></p>
+            <img id="image-error" src="" style="max-width: 100%;">
         </div>
     </div>
     <div id="modal-help" class="modal">
@@ -115,9 +117,6 @@
         </div>
     </div>
     <div style="display:none;">
-        <div id="images">
-            ${images}
-        </div>
         <p id="status">${status}</p>
         <a id="sendStatus" href=""></a>
         <p id="settings">${settings}</p>

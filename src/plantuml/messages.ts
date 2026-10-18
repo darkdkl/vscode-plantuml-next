@@ -2,7 +2,7 @@
 // https://github.com/eamodio/vscode-gitlens/blob/master/src/messages.ts
 
 import { commands, ExtensionContext, Uri, window } from 'vscode';
-import { localize } from './common';
+import { localize, repositoryURL } from './common';
 
 export type SuppressedKeys = 'suppressUpdateNotice';
 export const SuppressedKeys = {
@@ -23,9 +23,9 @@ export class Messages {
         const dontShowAgain = localize(24, null);
         const result = await Messages._showMessage('info', localize(25, null, version), SuppressedKeys.UpdateNotice, dontShowAgain, viewDocs, viewReleaseNotes);
         if (result === viewReleaseNotes) {
-            commands.executeCommand("vscode.open", Uri.parse('https://marketplace.visualstudio.com/items/jebbs.plantuml/changelog'));
+            commands.executeCommand("vscode.open", Uri.parse(`${repositoryURL}/blob/main/CHANGELOG.md`));
         } else if (result === viewDocs) {
-            commands.executeCommand("vscode.open", Uri.parse('https://marketplace.visualstudio.com/items/jebbs.plantuml'));
+            commands.executeCommand("vscode.open", Uri.parse(`${repositoryURL}#readme`));
         }
         return result;
     }
@@ -34,7 +34,7 @@ export class Messages {
         const viewDocs = localize(22, null);
         const result = await window.showInformationMessage(localize(21, null), viewDocs);
         if (result === viewDocs) {
-            commands.executeCommand("vscode.open", Uri.parse('https://marketplace.visualstudio.com/items/jebbs.plantuml'));
+            commands.executeCommand("vscode.open", Uri.parse(`${repositoryURL}#readme`));
         }
         return result;
     }

@@ -103,6 +103,10 @@ class Config extends ConfigReader {
         return this.read<boolean>('previewAutoUpdate');
     }
 
+    previewKeepAlive(uri: vscode.Uri): boolean {
+        return this.read<boolean>('previewKeepAlive', uri);
+    }
+
     get previewSnapIndicators(): boolean {
         return this.read<boolean>('previewSnapIndicators');
     }

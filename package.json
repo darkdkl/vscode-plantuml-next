@@ -1,21 +1,21 @@
 {
-  "name": "plantuml",
-  "displayName": "PlantUML",
-  "description": "Rich PlantUML support for Visual Studio Code.",
+  "name": "plantuml-next",
+  "displayName": "PlantUML Next",
+  "description": "Rich PlantUML support for Visual Studio Code. A fork of jebbs' PlantUML extension with a faster preview and source navigation.",
   "icon": "images/icon.png",
-  "version": "2.18.1",
-  "publisher": "jebbs",
+  "version": "2.19.0",
+  "publisher": "dark-dmake",
   "engines": {
     "vscode": "^1.57.0"
   },
   "license": "SEE LICENSE IN LICENSE.txt",
   "bugs": {
-    "url": "https://github.com/qjebbs/vscode-plantuml/issues"
+    "url": "https://github.com/darkdkl/vscode-plantuml-next/issues"
   },
-  "homepage": "https://github.com/qjebbs/vscode-plantuml/blob/master/README.md",
+  "homepage": "https://github.com/darkdkl/vscode-plantuml-next#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/qjebbs/vscode-plantuml.git"
+    "url": "https://github.com/darkdkl/vscode-plantuml-next.git"
   },
   "categories": [
     "Programming Languages",
@@ -277,6 +277,12 @@
           "default": true,
           "description": "%plantuml.configuration.previewAutoUpdate%"
         },
+        "plantuml.previewKeepAlive": {
+          "type": "boolean",
+          "scope": "resource",
+          "default": true,
+          "description": "%plantuml.configuration.previewKeepAlive%"
+        },
         "plantuml.previewSnapIndicators": {
           "type": "boolean",
           "scope": "application",
@@ -388,12 +394,15 @@
     "vscode:prepublish": "npm run buildsyntax && tsc -p ./",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "buildsyntax": "node ./scripts/build-syntax.js"
+    "buildsyntax": "node ./scripts/build-syntax.js",
+    "typecheck": "tsc -p ./ --noEmit",
+    "package": "vsce package --out plantuml-next-$npm_package_version.vsix"
   },
   "devDependencies": {
     "@types/mocha": "^9.1.1",
     "@types/node": "^16.0.0",
     "@types/vscode": "^1.57.0",
+    "@vscode/vsce": "^3.9.2",
     "js-yaml": "^3.13.1",
     "markdown-it": "^13.0.1",
     "plist": "^3.0.2",

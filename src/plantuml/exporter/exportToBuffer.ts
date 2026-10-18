@@ -10,10 +10,11 @@ import { appliedRender } from './appliedRender';
  * @param diagram the diagram to export.
  * @param format format of export file.
  * @param bar display prcessing message in bar if it's given.
+ * @param withMap also export the image map to make links clickable.
  * @returns ExportTask.
  */
-export function exportToBuffer(diagram: Diagram, format: string, bar?: vscode.StatusBarItem): RenderTask {
-    return exportDiagram(diagram, format, "", bar);
+export function exportToBuffer(diagram: Diagram, format: string, bar?: vscode.StatusBarItem, withMap: boolean = true): RenderTask {
+    return exportDiagram(diagram, format, "", bar, withMap);
 }
 
 /**

@@ -14,11 +14,11 @@ export let documentEol: string;
 export let platformEol: string;
 
 /**
- * Activates the jebbs.plantuml extension
+ * Activates the dark-dmake.plantuml-next extension
  */
 export async function activate(docUri: vscode.Uri, sleepMsForServer: number = 0) {
 	// The extensionId is `publisher.name` from package.json
-	const ext = vscode.extensions.getExtension('jebbs.plantuml');
+	const ext = vscode.extensions.getExtension('dark-dmake.plantuml-next');
 	await ext.activate();
 	try {
 		doc = await vscode.workspace.openTextDocument(docUri);

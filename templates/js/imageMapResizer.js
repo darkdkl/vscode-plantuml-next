@@ -41,7 +41,12 @@
           ),
         }
   
-        cachedAreaCoordsArray.forEach(resizeAreaTag)
+        // cache the original coords on each area instead of once on setup,
+        // since areas are replaced when the diagram or page changes
+        Array.prototype.forEach.call(areas, function (area, idx) {
+          if (area.dataset.coords === undefined) area.dataset.coords = getCoords(area)
+          resizeAreaTag(area.dataset.coords, idx)
+        })
       }
   
       function getCoords(e) {
@@ -81,7 +86,6 @@
   
       function setup() {
         areas = map.getElementsByTagName('area')
-        cachedAreaCoordsArray = Array.prototype.map.call(areas, getCoords)
         image = getImg('#' + map.name) || getImg(map.name)
         map._resize = resizeMap //Bind resize method to HTML map element
       }
@@ -89,7 +93,6 @@
       var /*jshint validthis:true */
         map = this,
         areas = null,
-        cachedAreaCoordsArray = null,
         image = null,
         timer = null
   

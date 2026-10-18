@@ -14,15 +14,17 @@ import { config } from '../config';
  * @param format format of export file.
  * @param savePath if savePath is given, it exports to a file, or, to Buffer.
  * @param bar display prcessing message in bar if it's given.
+ * @param withMap when exporting to buffer, also export the image map, which is a second render.
  * @returns ExportTask.
  */
-export function exportDiagram(diagram: Diagram, format: string, savePath: string, bar: vscode.StatusBarItem): RenderTask {
+export function exportDiagram(diagram: Diagram, format: string, savePath: string, bar: vscode.StatusBarItem, withMap: boolean = true): RenderTask {
     if (bar) {
         bar.show();
         bar.text = localize(7, null, diagram.name + "." + format.split(":")[0]);
     }
     let renderTask = appliedRender(diagram.parentUri).render(diagram, format, savePath);
     if (!savePath) {
+        if (!withMap) return renderTask;
         // when exporting to buffer include map to make links clickable
         let mapTask = appliedRender(diagram.parentUri).getMapData(diagram, savePath);
         // https://github.com/qjebbs/vscode-plantuml/issues/579

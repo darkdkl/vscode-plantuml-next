@@ -9,6 +9,7 @@ import { config } from '../config';
 import { localize, extensionPath } from '../common';
 import { addFileIndex } from '../tools';
 import { processWrapper } from './processWrapper';
+import { warmProcesses, MAX_WARM_PAGES } from './warmProcess';
 
 class LocalRender implements IRender {
 
@@ -47,11 +48,101 @@ class LocalRender implements IRender {
      * @returns ExportTask.
      */
     render(diagram: Diagram, format: string, savePath: string): RenderTask {
+        // rendering to buffer is for the preview, which is updated on every edit
+        if (!savePath && config.previewKeepAlive(diagram.parentUri))
+            return this.createWarmTask(diagram, format);
         return this.createTask(diagram, "-pipe", savePath, format);
     }
 
     getMapData(diagram: Diagram, savePath: string): RenderTask {
         return this.createTask(diagram, "-pipemap", savePath);
+    }
+    /**
+     * java arguments to render a page of the diagram from stdin
+     */
+    buildParams(diagram: Diagram, index: number, taskType: string, format?: string): string[] {
+        let params = [
+            '-Djava.awt.headless=true',
+            '-jar',
+            config.jar(diagram.parentUri),
+            "-pipeimageindex",
+            `${index}`,
+            '-charset',
+            'utf-8',
+        ];
+
+        let includePath = ''
+        if (diagram.dir && path.isAbsolute(diagram.dir)) {
+            includePath = diagram.dir;
+        }
+
+        let ws = vscode.workspace.getWorkspaceFolder(diagram.parentUri);
+        let folderPaths = config.includepaths(diagram.parentUri);
+        for (let folderPath of folderPaths) {
+            if (!folderPath) continue;
+            if (!path.isAbsolute(folderPath)) {
+                folderPath = path.join(ws.uri.fsPath, folderPath);
+            }
+            includePath = includePath + path.delimiter + folderPath;
+        }
+
+        let diagramsRoot = config.diagramsRoot(diagram.parentUri);
+        if (diagramsRoot) {
+            includePath = includePath + path.delimiter + diagramsRoot.fsPath;
+        }
+
+        params.unshift('-Dplantuml.include.path=' + includePath);
+
+        // Add user java args
+        params.unshift(...config.commandArgs(diagram.parentUri));
+        // Jar args
+        params.push(taskType);
+        if (format) params.push("-t" + format);
+        if (diagram.path) params.push("-filename", path.basename(diagram.path));
+        // Add user jar args
+        params.push(...config.jarArgs(diagram.parentUri));
+        return params;
+    }
+    /**
+     * render with running PlantUML processes, see warmProcess.ts
+     */
+    private createWarmTask(diagram: Diagram, format: string): RenderTask {
+        let error = this.checkJava(diagram);
+        if (error) return <RenderTask>{ promise: Promise.reject(error) };
+
+        let java = config.java(diagram.parentUri);
+        let params = [...Array(diagram.pageCount).keys()].map(index => this.buildParams(diagram, index, "-pipe", format));
+        // stop the processes of previously previewed diagrams
+        warmProcesses.retain(java, params.slice(0, MAX_WARM_PAGES));
+
+        let task = <RenderTask>{ processes: [], canceled: false };
+        // pages one at a time, like createTask()
+        task.promise = params.reduce(
+            (pChain, pageParams, index) => pChain.then(buffers => {
+                if (task.canceled) return buffers;
+                let render: Promise<Buffer> = index < MAX_WARM_PAGES ?
+                    warmProcesses.render(java, pageParams, diagram.content, () => task.canceled) :
+                    this.renderOnce(java, pageParams, diagram.content);
+                return render
+                    .then(
+                        out => [...buffers, out],
+                        err => Promise.reject(<RenderError>{ error: localize(10, null, diagram.name, err.error), out: err.out })
+                    );
+            }),
+            Promise.resolve(<Buffer[]>[])
+        );
+        return task;
+    }
+    private renderOnce(java: string, params: string[], content: string): Promise<Buffer> {
+        let process = child_process.spawn(java, params);
+        process.stdin.write(content);
+        process.stdin.end();
+        return processWrapper(process);
+    }
+    private checkJava(diagram: Diagram): string {
+        if (!config.java) return localize(5, null);
+        if (!fs.existsSync(config.jar(diagram.parentUri))) return localize(6, null, extensionPath);
+        return undefined;
     }
     private createTask(diagram: Diagram, taskType: string, savePath: string, format?: string): RenderTask {
         if (!config.java) {
@@ -69,46 +160,7 @@ class LocalRender implements IRender {
         //but processes are all started at the begining, and recorded for later process.
         let pms = [...Array(diagram.pageCount).keys()].reduce(
             (pChain, index) => {
-                let params = [
-                    '-Djava.awt.headless=true',
-                    '-jar',
-                    config.jar(diagram.parentUri),
-                    "-pipeimageindex",
-                    `${index}`,
-                    '-charset',
-                    'utf-8',
-                ];
-
-                let includePath = ''
-                if (diagram.dir && path.isAbsolute(diagram.dir)) {
-                    includePath = diagram.dir;
-                }
-
-                let ws = vscode.workspace.getWorkspaceFolder(diagram.parentUri);
-                let folderPaths = config.includepaths(diagram.parentUri);
-                for (let folderPath of folderPaths) {
-                    if (!folderPath) continue;
-                    if (!path.isAbsolute(folderPath)) {
-                        folderPath = path.join(ws.uri.fsPath, folderPath);
-                    }
-                    includePath = includePath + path.delimiter + folderPath;
-                }
-
-                let diagramsRoot = config.diagramsRoot(diagram.parentUri);
-                if (diagramsRoot) {
-                    includePath = includePath + path.delimiter + diagramsRoot.fsPath;
-                }
-
-                params.unshift('-Dplantuml.include.path=' + includePath);
-
-                // Add user java args
-                params.unshift(...config.commandArgs(diagram.parentUri));
-                // Jar args
-                params.push(taskType);
-                if (format) params.push("-t" + format);
-                if (diagram.path) params.push("-filename", path.basename(diagram.path));
-                // Add user jar args
-                params.push(...config.jarArgs(diagram.parentUri));
+                let params = this.buildParams(diagram, index, taskType, format);
                 let process : any = child_process.spawn(config.java(diagram.parentUri), params);
                 processes.push(process);
                 return pChain.then(

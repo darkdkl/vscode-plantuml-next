@@ -54,6 +54,20 @@ export class UI extends vscode.Disposable {
         if (!this._panel.visible || viewColumn !== this._panel.viewColumn)
             this._panel.reveal(viewColumn ? viewColumn : this._panel.viewColumn);
     }
+    /**
+     * show the panel, but load the file only if the panel is newly created,
+     * so that an opened page keeps its state and can be updated by postMessage.
+     * @returns true if the file is loaded
+     */
+    open(file: string, env?: any, viewColumn?: vscode.ViewColumn): boolean {
+        let created = !this._panel;
+        viewColumn = viewColumn || (this._panel ? this._panel.viewColumn : DEFAULT_VIEWCOLUMN);
+        this.createIfNoPanel(viewColumn);
+        if (created) this.update(file, env);
+        if (!this._panel.visible || viewColumn !== this._panel.viewColumn)
+            this._panel.reveal(viewColumn ? viewColumn : this._panel.viewColumn);
+        return created;
+    }
     close() {
         this.dispose();
     }

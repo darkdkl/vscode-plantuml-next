@@ -1,4 +1,30 @@
-# VSCode PlantUML Changelog
+# PlantUML Next Changelog
+
+## 2.19.0
+
+First release of **PlantUML Next**, a fork of [jebbs' PlantUML extension](https://github.com/qjebbs/vscode-plantuml), based on its 2.18.1.
+
+Preview performance:
+
+- Smooth zoom on large diagrams: while zooming, the diagram is only scaled, and it's redrawn once the zoom settles
+- SVG is shown inline, so only the visible part of a large diagram is painted, which makes panning a zoomed diagram smooth
+- The preview is updated in place instead of reloading the page, keeping zoom and scroll position
+- PlantUML keeps running while the preview is open, which makes updates several times faster. It stops when the preview is closed. Setting: `plantuml.previewKeepAlive`
+- Links come from the SVG itself, so PlantUML runs once per page instead of twice
+
+Source navigation:
+
+- Cmd+click (macOS) or Ctrl+click an element in the preview to select its source in the editor
+- The element defined at the editor cursor is highlighted in the preview
+- Works for elements PlantUML marks with their source line: classes, components, states, use cases, notes, packages, and since PlantUML 1.2026.9 participants and messages of sequence diagrams
+
+Other:
+
+- Keep the zoom of each page when switching pages, update link areas when the diagram changes
+- Bundle the MIT licensed build of PlantUML, see the README for what it leaves out
+- The extension id is `dark-dmake.plantuml-next`; settings and commands keep the `plantuml.` names, so existing settings work
+
+# Changes of the original extension
 
 ## 2.18.1
 

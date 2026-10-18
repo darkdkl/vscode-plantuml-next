@@ -1,8 +1,37 @@
-# PlantUML README
+# PlantUML Next
 
-Rich PlantUML support for Visual Studio Code.
+Rich PlantUML support for Visual Studio Code: a fork of [jebbs' PlantUML extension](https://github.com/qjebbs/vscode-plantuml) with a faster preview and source navigation.
 
-[![Build Status](https://travis-ci.org/qjebbs/vscode-plantuml.svg?branch=master)](https://travis-ci.org/qjebbs/vscode-plantuml)
+## About this fork
+
+The original extension hasn't been updated since 2024. This fork keeps all of its features, and adds:
+
+- **Fast preview of large diagrams.** Zooming only scales the diagram while you zoom, and redraws it once. Only the visible part of a diagram is painted, so panning stays smooth. Updates keep the zoom and scroll position.
+- **Faster updates.** PlantUML keeps running while the preview is open (setting `plantuml.previewKeepAlive`), and runs once per page instead of twice.
+- **Source navigation.** Cmd+click (macOS) or Ctrl+click an element in the preview to select its source in the editor; the element at the editor cursor is highlighted in the preview. It works for classes, components, states, use cases, notes, packages, and participants and messages of sequence diagrams.
+
+See the [changelog](CHANGELOG.md) for details.
+
+### Moving from the original extension
+
+Settings and commands keep their `plantuml.` names, so your settings keep working. Disable or uninstall the original extension (`jebbs.plantuml`): both provide the same commands and can't be enabled together.
+
+### Install
+
+Download `plantuml-next-<version>.vsix` from the [releases](https://github.com/darkdkl/vscode-plantuml-next/releases), then run `code --install-extension plantuml-next-<version>.vsix`.
+
+### Bundled PlantUML
+
+The extension bundles the MIT licensed build of PlantUML. It leaves out PDF export, ditaa diagrams, the ELK layout (`!pragma layout elk`), QR codes and sudoku. To use them, download the full `plantuml.jar` from [plantuml.com](https://plantuml.com/download) and set `plantuml.jar` to it.
+
+### Credits
+
+All credits for the extension go to [jebbs](https://github.com/qjebbs) and the [contributors](https://github.com/qjebbs/vscode-plantuml/graphs/contributors) of the original extension. Issues of this fork go to [its own tracker](https://github.com/darkdkl/vscode-plantuml-next/issues).
+
+---
+
+The rest is the README of the original extension.
+
 
 <!-- [Donate by Paypal](https://paypal.me/qjebbs "If you like this plugin, you can buy me a coffee. Feel free if you don't want to, since it's free!")
 |

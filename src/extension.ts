@@ -11,7 +11,7 @@ import { Completion } from "./providers/completion";
 import { Signature } from "./providers/signature";
 import { Formatter } from "./providers/formatter";
 import { notifyOnNewVersion } from "./plantuml/messages";
-import { outputPanel, bar } from "./plantuml/common";
+import { outputPanel, bar, extensionVersion, originalExtensionId } from "./plantuml/common";
 import { contextManager } from './plantuml/context';
 
 import { CommandExportCurrent } from './commands/exportCurrent';
@@ -22,15 +22,20 @@ import { CommandURLDocument } from './commands/urlDocument';
 import { CommandExtractSource } from './commands/extractSource';
 import { plantumlPlugin } from './markdown-it-plantuml/index';
 import { Diagnoser } from './providers/diagnoser';
+import { warmProcesses } from './plantuml/renders/warmProcess';
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
     contextManager.set(context);
     try {
-        const ext = vscode.extensions.getExtension("jebbs.plantuml");
-        const version = ext.packageJSON.version;
-        notifyOnNewVersion(context, version);
+        notifyOnNewVersion(context, extensionVersion);
+        if (vscode.extensions.getExtension(originalExtensionId)) {
+            vscode.window.showWarningMessage(
+                `The original PlantUML extension (${originalExtensionId}) is also enabled. ` +
+                `Disable or uninstall one of them, they provide the same commands and settings.`
+            );
+        }
 
         context.subscriptions.push(
             new CommandExportCurrent(),
@@ -43,7 +48,7 @@ export function activate(context: vscode.ExtensionContext) {
             new Symbol(),
             new Completion(),
             new Signature(),
-            new Diagnoser(ext),
+            new Diagnoser(context.extension),
             previewer,
             config,
             outputPanel,
@@ -61,4 +66,6 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 // this method is called when your extension is deactivated
-export function deactivate() { }
+export function deactivate() {
+    warmProcesses.dispose();
+}
