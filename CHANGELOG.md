@@ -1,5 +1,9 @@
 # PlantUML Next Changelog
 
+## 2.19.2
+
+- Remove PDF from the export formats of the local render: the bundled MIT build of PlantUML can't export PDF. PDF export with a PlantUML server still works
+
 ## 2.19.1
 
 - New icon
