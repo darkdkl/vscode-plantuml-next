@@ -1,5 +1,9 @@
 # PlantUML Next Changelog
 
+## 2.19.1
+
+- New icon
+
 ## 2.19.0
 
 First release of **PlantUML Next**, a fork of [jebbs' PlantUML extension](https://github.com/qjebbs/vscode-plantuml), based on its 2.18.1.
