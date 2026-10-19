@@ -1,5 +1,11 @@
 # PlantUML Next Changelog
 
+## 2.20.0
+
+- The element at the editor cursor is outlined in the preview with a frame that stays visible at any zoom
+- The preview scrolls to that element when the cursor moves to another element out of view. Setting: `plantuml.previewFollowCursor`
+- New command "PlantUML: Show in Preview" (editor context menu): scrolls the preview to the element at the cursor and flashes it
+
 ## 2.19.3
 
 - Marketplace listing: install instructions, search keywords, banner color, questions go to GitHub issues

@@ -3,7 +3,7 @@
   "displayName": "PlantUML Next",
   "description": "Rich PlantUML support for Visual Studio Code. A fork of jebbs' PlantUML extension with a faster preview and source navigation.",
   "icon": "images/icon.png",
-  "version": "2.19.3",
+  "version": "2.20.0",
   "publisher": "dark-dmake",
   "engines": {
     "vscode": "^1.57.0"
