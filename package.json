@@ -44,6 +44,7 @@
     "onCommand:plantuml.exportDocument",
     "onCommand:plantuml.exportWorkspace",
     "onCommand:plantuml.preview",
+    "onCommand:plantuml.revealInPreview",
     "onCommand:plantuml.URLCurrent",
     "onCommand:plantuml.URLDocument",
     "onCommand:plantuml.extractSource"
@@ -106,6 +107,11 @@
         "icon": "$(open-preview)"
       },
       {
+        "command": "plantuml.revealInPreview",
+        "title": "%plantuml.revealInPreview.title%",
+        "category": "PlantUML"
+      },
+      {
         "command": "plantuml.URLCurrent",
         "title": "%plantuml.URLCurrent.title%",
         "category": "PlantUML"
@@ -126,6 +132,11 @@
         {
           "when": "editorLangId == plantuml",
           "command": "plantuml.preview",
+          "group": "PlantUML"
+        },
+        {
+          "when": "editorLangId == plantuml",
+          "command": "plantuml.revealInPreview",
           "group": "PlantUML"
         },
         {
@@ -296,6 +307,12 @@
           "scope": "resource",
           "default": true,
           "description": "%plantuml.configuration.previewKeepAlive%"
+        },
+        "plantuml.previewFollowCursor": {
+          "type": "boolean",
+          "scope": "application",
+          "default": true,
+          "description": "%plantuml.configuration.previewFollowCursor%"
         },
         "plantuml.previewSnapIndicators": {
           "type": "boolean",

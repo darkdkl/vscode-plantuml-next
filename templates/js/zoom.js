@@ -380,6 +380,7 @@ class Zoom {
         this.calcSnap();
         this.setToggleIcon();
         this.resizeImageMap();
+        applySourceHighlight();
     }
     // read layout once per commit, so that zoom previews never have to
     measure() {

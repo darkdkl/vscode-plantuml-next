@@ -107,6 +107,10 @@ class Config extends ConfigReader {
         return this.read<boolean>('previewKeepAlive', uri);
     }
 
+    get previewFollowCursor(): boolean {
+        return this.read<boolean>('previewFollowCursor');
+    }
+
     get previewSnapIndicators(): boolean {
         return this.read<boolean>('previewSnapIndicators');
     }

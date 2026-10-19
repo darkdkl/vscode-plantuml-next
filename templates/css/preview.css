@@ -313,6 +313,27 @@ img[src=""] {
     opacity: 0;
 }
 
+#source-highlight {
+    display: none;
+    position: absolute;
+    box-sizing: border-box;
+    pointer-events: none;
+    border: 2px solid #0089c9;
+    border-radius: 4px;
+    background: rgba(0, 137, 201, 0.12);
+    box-shadow: 0 0 0 3px rgba(0, 137, 201, 0.25);
+}
+
+#source-highlight.flash {
+    animation: source-highlight-flash 0.5s ease-out 2;
+}
+
+@keyframes source-highlight-flash {
+    50% {
+        box-shadow: 0 0 0 10px rgba(0, 137, 201, 0.35);
+    }
+}
+
 #selectionBox {
     position: absolute;
     border: 1px solid #CCCCCC;

@@ -5,10 +5,12 @@
 
 const SOURCE_NAV_STYLE = `
 :host-context(.source-nav) [data-source-line] { cursor: pointer; }
-.source-highlight { filter: drop-shadow(0 0 2px #0089c9) drop-shadow(0 0 4px #0089c9); }
 `;
+const SOURCE_HIGHLIGHT_PADDING = 4;
 
 let sourceHighlightLine = -1;
+let sourceFollowLine = -1;
+let sourceHighlightBox = undefined;
 
 function addSourceNavigation(vscode) {
     let imgContainer = document.getElementById("image-container");
@@ -54,11 +56,17 @@ function addSourceNavigation(vscode) {
     imgContainer.addEventListener("mousemove", setNavMode);
     window.addEventListener("blur", () => setNavMode(undefined));
 
+    sourceHighlightBox = document.createElement("div");
+    sourceHighlightBox.id = "source-highlight";
+    imgContainer.appendChild(sourceHighlightBox);
+
     window.addEventListener("message", e => {
-        if (e.data && e.data.action == "highlight") {
-            sourceHighlightLine = e.data.line;
-            applySourceHighlight();
-        }
+        if (!e.data || e.data.action != "highlight") return;
+        sourceHighlightLine = e.data.line;
+        applySourceHighlight();
+        let moved = sourceHighlightLine >= 0 && sourceHighlightLine !== sourceFollowLine;
+        if (sourceHighlightLine >= 0) sourceFollowLine = sourceHighlightLine;
+        if (e.data.reveal || (moved && e.data.follow)) revealSourceHighlight(e.data.reveal);
     });
 }
 
@@ -88,12 +96,54 @@ function reportSourceEntities() {
     if (vscode) vscode.postMessage({ action: "sourceEntities", entities: entities });
 }
 
-function applySourceHighlight() {
+function sourceHighlightRect() {
     let root = sourceRoot();
-    if (!root) return;
-    for (let el of root.querySelectorAll(".source-highlight")) el.classList.remove("source-highlight");
-    if (sourceHighlightLine < 0) return;
+    if (!root || sourceHighlightLine < 0) return undefined;
+    let rect = undefined;
     for (let el of root.querySelectorAll(`[data-source-line="${sourceHighlightLine}"]`)) {
-        el.classList.add("source-highlight");
+        let r = el.getBoundingClientRect();
+        if (!r.width && !r.height) continue;
+        rect = rect ? {
+            left: Math.min(rect.left, r.left),
+            top: Math.min(rect.top, r.top),
+            right: Math.max(rect.right, r.right),
+            bottom: Math.max(rect.bottom, r.bottom),
+        } : { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+    }
+    return rect;
+}
+
+function applySourceHighlight() {
+    if (!sourceHighlightBox) return;
+    if (zoomer && zoomer.pending) return;
+    let rect = sourceHighlightRect();
+    if (!rect) {
+        sourceHighlightBox.style.display = "none";
+        return;
+    }
+    let container = sourceHighlightBox.parentElement.getBoundingClientRect();
+    let pad = SOURCE_HIGHLIGHT_PADDING;
+    sourceHighlightBox.style.left = (rect.left - container.left - pad) + "px";
+    sourceHighlightBox.style.top = (rect.top - container.top - pad) + "px";
+    sourceHighlightBox.style.width = (rect.right - rect.left + 2 * pad) + "px";
+    sourceHighlightBox.style.height = (rect.bottom - rect.top + 2 * pad) + "px";
+    sourceHighlightBox.style.display = "block";
+}
+
+function revealSourceHighlight(flash) {
+    let rect = sourceHighlightRect();
+    if (!rect) return;
+    let visible = rect.left >= 0 && rect.top >= 0 && rect.right <= window.innerWidth && rect.bottom <= window.innerHeight;
+    if (!visible) {
+        window.scrollTo({
+            left: window.scrollX + (rect.left + rect.right - window.innerWidth) / 2,
+            top: window.scrollY + (rect.top + rect.bottom - window.innerHeight) / 2,
+            behavior: "smooth",
+        });
+    }
+    if (flash) {
+        sourceHighlightBox.classList.remove("flash");
+        void sourceHighlightBox.offsetWidth;
+        sourceHighlightBox.classList.add("flash");
     }
 }

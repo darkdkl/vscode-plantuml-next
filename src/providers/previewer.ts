@@ -47,6 +47,7 @@ class Previewer extends vscode.Disposable {
     private sourceEntities: SourceEntity[] = [];
     private sourceMap: { key: string, map: SourceMap } = undefined;
     private highlighted: number = undefined;
+    private pendingReveal: boolean = false;
 
     constructor() {
         super(() => this.dispose());
@@ -276,6 +277,11 @@ class Previewer extends vscode.Disposable {
         let disposable: vscode.Disposable;
 
         //register command
+        disposable = vscode.commands.registerCommand('plantuml.revealInPreview', () => {
+            this.revealInPreview().catch(e => showMessagePanel(e));
+        });
+        this._disposables.push(disposable);
+
         disposable = vscode.commands.registerCommand('plantuml.preview', async () => {
             try {
                 var editor = vscode.window.activeTextEditor;
@@ -316,7 +322,8 @@ class Previewer extends vscode.Disposable {
                 this.sourceEntities = e.message.entities || [];
                 this.sourceMap = undefined;
                 this.highlighted = undefined;
-                this.syncHighlight();
+                this.syncHighlight(this.pendingReveal);
+                this.pendingReveal = false;
             } else {
                 this.setUIStatus(JSON.stringify(e.message));
             }
@@ -392,23 +399,46 @@ class Previewer extends vscode.Disposable {
         editor.revealRange(range, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
     }
     // highlight the diagram element defined at the cursor
-    private syncHighlight() {
+    private syncHighlight(reveal: boolean = false) {
         if (!this.pageReady || !this.displayed) return;
+        let line = this.lineAtCursor();
+        if (reveal && line === undefined)
+            vscode.window.showInformationMessage("PlantUML: there is no element of the diagram at the cursor to show in the preview.");
+        if (line === this.highlighted && !reveal) return;
+        this.highlighted = line;
+        this._uiPreview.postMessage({
+            action: "highlight",
+            line: line === undefined ? -1 : line,
+            reveal: reveal,
+            follow: config.previewFollowCursor,
+        });
+    }
+    private lineAtCursor(): number {
         let document = this.displayed.document;
         let editor = vscode.window.activeTextEditor;
         // the preview itself may have the focus
         if (!editor || editor.document !== document)
             editor = vscode.window.visibleTextEditors.find(e => e.document === document);
-        let line: number = undefined;
-        if (editor && this.sourceEntities.length) {
-            let cursor = editor.selection.active.line;
-            let diagram = diagramAt(document, cursor);
-            if (diagram && diagram.index === this.displayed.index)
-                line = this.sourceMapOf(diagram).lineOf(cursor);
+        if (!editor || !this.sourceEntities.length) return undefined;
+        let cursor = editor.selection.active.line;
+        let diagram = diagramAt(document, cursor);
+        if (!diagram || diagram.index !== this.displayed.index) return undefined;
+        return this.sourceMapOf(diagram).lineOf(cursor);
+    }
+    private async revealInPreview() {
+        let editor = vscode.window.activeTextEditor;
+        if (!editor) return;
+        let diagram = diagramAt(editor.document, editor.selection.active.line);
+        if (!diagram) return;
+        let shown = this.pageReady && this.displayed &&
+            this.displayed.document === editor.document && this.displayed.index === diagram.index;
+        if (!shown) {
+            this.pendingReveal = true;
+            await vscode.commands.executeCommand('plantuml.preview');
+            return;
         }
-        if (line === this.highlighted) return;
-        this.highlighted = line;
-        this._uiPreview.postMessage({ action: "highlight", line: line === undefined ? -1 : line });
+        this._uiPreview.reveal();
+        this.syncHighlight(true);
     }
     stopWatch() {
         for (let d of this.watchDisposables) {
