@@ -9,16 +9,17 @@ const SOURCE_NAV_STYLE = `
     filter: drop-shadow(0 0 var(--source-glow-1) #0089c9) drop-shadow(0 0 var(--source-glow-2) #0089c9);
 }
 .source-highlight.flash { animation: source-highlight-flash 0.5s ease-out 2; }
-.source-highlight.flash-out { animation: source-highlight-flash-out 1.2s ease-out forwards; }
+.source-highlight.flash-out { animation: source-highlight-flash-out 4.2s ease-out forwards; }
 @keyframes source-highlight-flash {
     50% { filter: drop-shadow(0 0 var(--source-glow-2) #0089c9) drop-shadow(0 0 var(--source-glow-3) #0089c9); }
 }
 @keyframes source-highlight-flash-out {
-    30% { filter: drop-shadow(0 0 var(--source-glow-2) #0089c9) drop-shadow(0 0 var(--source-glow-3) #0089c9); }
+    6% { filter: drop-shadow(0 0 var(--source-glow-2) #0089c9) drop-shadow(0 0 var(--source-glow-3) #0089c9); }
+    12%, 86% { filter: drop-shadow(0 0 var(--source-glow-1) #0089c9) drop-shadow(0 0 var(--source-glow-2) #0089c9); }
     100% { filter: drop-shadow(0 0 var(--source-glow-1) transparent) drop-shadow(0 0 var(--source-glow-2) transparent); }
 }
 `;
-const SOURCE_FLASH_OUT_MS = 1200;
+const SOURCE_FLASH_OUT_MS = 4200;
 const SOURCE_GLOW_PIXELS = [3, 6, 12];
 
 let sourceHighlightLine = -1;
@@ -46,10 +47,9 @@ function addSourceNavigation(vscode) {
     imgContainer.addEventListener("mouseup", e => {
         let el = sourceElementOf(e);
         if (!el) return;
-        if (vscode) vscode.postMessage({
-            action: "revealSource",
-            line: Number(el.getAttribute("data-source-line")),
-        });
+        let line = Number(el.getAttribute("data-source-line"));
+        if (vscode) vscode.postMessage({ action: "revealSource", line: line });
+        flashSourceElement(line);
         e.preventDefault();
         e.stopImmediatePropagation();
     }, true);
@@ -71,19 +71,42 @@ function addSourceNavigation(vscode) {
 
     window.addEventListener("message", e => {
         if (!e.data || e.data.action != "highlight") return;
+        if (e.data.transient && !e.data.reveal) {
+            if (sourceRectOf(e.data.line)) flashSourceElement(e.data.line);
+            return;
+        }
         clearTimeout(sourceFlashOutTimer);
         sourceHighlightLine = e.data.line;
         applySourceHighlight();
+        if (!e.data.transient) {
+            for (let el of sourceHighlightElements()) {
+                if (!el.classList.contains("flash-out")) continue;
+                el.classList.remove("flash-out");
+                el.classList.add("flash");
+            }
+        }
         let moved = sourceHighlightLine >= 0 && sourceHighlightLine !== sourceFollowLine;
         if (sourceHighlightLine >= 0) sourceFollowLine = sourceHighlightLine;
         if (e.data.reveal || (moved && e.data.follow)) revealSourceHighlight(e.data.reveal, e.data.transient);
-        if (e.data.transient) {
-            sourceFlashOutTimer = setTimeout(() => {
-                sourceHighlightLine = -1;
-                applySourceHighlight();
-            }, SOURCE_FLASH_OUT_MS);
-        }
+        if (e.data.transient) scheduleFlashOut();
     });
+}
+
+function scheduleFlashOut() {
+    clearTimeout(sourceFlashOutTimer);
+    sourceFlashOutTimer = setTimeout(() => {
+        sourceHighlightLine = -1;
+        applySourceHighlight();
+    }, SOURCE_FLASH_OUT_MS);
+}
+
+function flashSourceElement(line) {
+    clearTimeout(sourceFlashOutTimer);
+    sourceHighlightLine = line;
+    sourceFollowLine = line;
+    applySourceHighlight();
+    revealSourceHighlight(true, true);
+    scheduleFlashOut();
 }
 
 // the root to find elements in, if the current page is an inline SVG
@@ -113,10 +136,18 @@ function reportSourceEntities() {
 }
 
 function sourceHighlightRect() {
+    return sourceRectOf(sourceHighlightLine);
+}
+
+function isRectVisible(rect) {
+    return rect.left >= 0 && rect.top >= 0 && rect.right <= window.innerWidth && rect.bottom <= window.innerHeight;
+}
+
+function sourceRectOf(line) {
     let root = sourceRoot();
-    if (!root || sourceHighlightLine < 0) return undefined;
+    if (!root || line < 0) return undefined;
     let rect = undefined;
-    for (let el of root.querySelectorAll(`[data-source-line="${sourceHighlightLine}"]`)) {
+    for (let el of root.querySelectorAll(`[data-source-line="${line}"]`)) {
         let r = el.getBoundingClientRect();
         if (!r.width && !r.height) continue;
         rect = rect ? {
@@ -153,8 +184,7 @@ function applySourceHighlight() {
 function revealSourceHighlight(flash, transient) {
     let rect = sourceHighlightRect();
     if (!rect) return;
-    let visible = rect.left >= 0 && rect.top >= 0 && rect.right <= window.innerWidth && rect.bottom <= window.innerHeight;
-    if (!visible) {
+    if (!isRectVisible(rect)) {
         window.scrollTo({
             left: window.scrollX + (rect.left + rect.right - window.innerWidth) / 2,
             top: window.scrollY + (rect.top + rect.bottom - window.innerHeight) / 2,

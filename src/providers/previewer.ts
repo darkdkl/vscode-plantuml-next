@@ -48,6 +48,7 @@ class Previewer extends vscode.Disposable {
     private sourceMap: { key: string, map: SourceMap } = undefined;
     private highlighted: number = undefined;
     private pendingReveal: boolean = false;
+    private followed: number = undefined;
     private pendingDefinition: { uri: string, position: vscode.Position, time: number } = undefined;
 
     constructor() {
@@ -429,16 +430,35 @@ class Previewer extends vscode.Disposable {
         if (reveal && line === undefined)
             vscode.window.showInformationMessage("PlantUML: there is no element of the diagram at the cursor to show in the preview.");
         let persistent = config.previewHighlightCursor;
-        let shown = persistent ? line : undefined;
-        if (!reveal && shown === this.highlighted) return;
-        this.highlighted = shown;
-        let target = reveal ? line : shown;
+        let follow = config.previewFollowCursor;
+        if (reveal) {
+            this.highlighted = persistent ? line : undefined;
+            this.followed = line;
+            this.postHighlight(line, true, !persistent, follow);
+            return;
+        }
+        if (persistent) {
+            if (line === this.highlighted) return;
+            this.highlighted = line;
+            this.followed = line;
+            this.postHighlight(line, false, false, follow);
+            return;
+        }
+        if (this.highlighted !== undefined) {
+            this.highlighted = undefined;
+            this.postHighlight(undefined, false, false, false);
+        }
+        let moved = line !== undefined && line !== this.followed;
+        this.followed = line;
+        if (follow && moved) this.postHighlight(line, false, true, true);
+    }
+    private postHighlight(line: number, reveal: boolean, transient: boolean, follow: boolean) {
         this._uiPreview.postMessage({
             action: "highlight",
-            line: target === undefined ? -1 : target,
+            line: line === undefined ? -1 : line,
             reveal: reveal,
-            transient: reveal && !persistent,
-            follow: persistent && config.previewFollowCursor,
+            transient: transient,
+            follow: follow,
         });
     }
     private async toggleSetting(key: string) {

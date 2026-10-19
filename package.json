@@ -340,7 +340,7 @@
         "plantuml.previewFollowCursor": {
           "type": "boolean",
           "scope": "application",
-          "default": true,
+          "default": false,
           "description": "%plantuml.configuration.previewFollowCursor%"
         },
         "plantuml.previewSnapIndicators": {

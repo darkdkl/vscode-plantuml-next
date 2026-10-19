@@ -4,7 +4,8 @@
 
 - Cmd+click (Ctrl+click) an element's name in the editor, or Go to Definition (F12): goes to the element's definition, scrolls the preview to it and flashes it. Works while the preview is open
 - New command "PlantUML: Show in Preview" (editor context menu, Cmd+Alt+P / Ctrl+Alt+P): scrolls the preview to the element at the cursor and flashes it
-- Optional: highlight the element at the editor cursor in the preview with a glow that stays visible at any zoom (setting `plantuml.previewHighlightCursor`, off by default), and scroll the preview to it when it's out of view (`plantuml.previewFollowCursor`). Both can be toggled from the command palette
+- An element flashes and glows for about 3 seconds when you go to it from the editor, or Cmd+click (Ctrl+click) it in the preview
+- Optional: highlight the element at the editor cursor in the preview with a glow that stays visible at any zoom (setting `plantuml.previewHighlightCursor`), and scroll the preview to it when it's out of view (`plantuml.previewFollowCursor`; without the highlight the element flashes for a few seconds each time the cursor moves to it). Both are off by default and can be toggled from the command palette
 
 ## 2.19.3
 

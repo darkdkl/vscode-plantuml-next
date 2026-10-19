@@ -21,7 +21,7 @@
 	"plantuml.configuration.previewAutoUpdate": "Указывает, обновлять, или не обновлять окно предпросмотра автоматически.",
 	"plantuml.configuration.previewKeepAlive": "Не останавливать процессы PlantUML для предпросмотра (только локальный рендер): обновление предпросмотра становится намного быстрее. Отключите, если предпросмотр отличается от экспорта.",
 	"plantuml.configuration.previewHighlightCursor": "Подсвечивать в предпросмотре элемент под курсором редактора.",
-	"plantuml.configuration.previewFollowCursor": "Прокручивать предпросмотр к элементу под курсором редактора, если элемент не виден. Работает, когда включена plantuml.previewHighlightCursor.",
+	"plantuml.configuration.previewFollowCursor": "Прокручивать предпросмотр к элементу под курсором редактора, если элемент не виден. Если plantuml.previewHighlightCursor выключена, элемент подсвечивается на несколько секунд, когда на него переходит курсор.",
 	"plantuml.configuration.previewSnapIndicators": "Указывает, отображать, или не отображать индикаторы закрепления в области предпросмотра.",
 	"plantuml.configuration.previewSwapMouseButtons": "Инвертирует функции ЛКМ и ПКМ в окне предпросмотра.",
 	"plantuml.configuration.server": "Сервер PlantUML для генерации диаграмм на лету. вы можете использовать официальный сервер https://www.plantuml.com/plantuml если считаете, что отправка на него ваших данных не нанесёт вам ущерб.",
