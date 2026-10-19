@@ -45,6 +45,8 @@
     "onCommand:plantuml.exportWorkspace",
     "onCommand:plantuml.preview",
     "onCommand:plantuml.revealInPreview",
+    "onCommand:plantuml.toggleHighlightCursor",
+    "onCommand:plantuml.toggleFollowCursor",
     "onCommand:plantuml.URLCurrent",
     "onCommand:plantuml.URLDocument",
     "onCommand:plantuml.extractSource"
@@ -114,6 +116,16 @@
       {
         "command": "plantuml.revealInPreview",
         "title": "%plantuml.revealInPreview.title%",
+        "category": "PlantUML"
+      },
+      {
+        "command": "plantuml.toggleHighlightCursor",
+        "title": "%plantuml.toggleHighlightCursor.title%",
+        "category": "PlantUML"
+      },
+      {
+        "command": "plantuml.toggleFollowCursor",
+        "title": "%plantuml.toggleFollowCursor.title%",
         "category": "PlantUML"
       },
       {
@@ -318,6 +330,12 @@
           "scope": "resource",
           "default": true,
           "description": "%plantuml.configuration.previewKeepAlive%"
+        },
+        "plantuml.previewHighlightCursor": {
+          "type": "boolean",
+          "scope": "application",
+          "default": false,
+          "description": "%plantuml.configuration.previewHighlightCursor%"
         },
         "plantuml.previewFollowCursor": {
           "type": "boolean",

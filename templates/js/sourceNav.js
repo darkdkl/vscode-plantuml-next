@@ -9,14 +9,21 @@ const SOURCE_NAV_STYLE = `
     filter: drop-shadow(0 0 var(--source-glow-1) #0089c9) drop-shadow(0 0 var(--source-glow-2) #0089c9);
 }
 .source-highlight.flash { animation: source-highlight-flash 0.5s ease-out 2; }
+.source-highlight.flash-out { animation: source-highlight-flash-out 1.2s ease-out forwards; }
 @keyframes source-highlight-flash {
     50% { filter: drop-shadow(0 0 var(--source-glow-2) #0089c9) drop-shadow(0 0 var(--source-glow-3) #0089c9); }
 }
+@keyframes source-highlight-flash-out {
+    30% { filter: drop-shadow(0 0 var(--source-glow-2) #0089c9) drop-shadow(0 0 var(--source-glow-3) #0089c9); }
+    100% { filter: drop-shadow(0 0 var(--source-glow-1) transparent) drop-shadow(0 0 var(--source-glow-2) transparent); }
+}
 `;
+const SOURCE_FLASH_OUT_MS = 1200;
 const SOURCE_GLOW_PIXELS = [3, 6, 12];
 
 let sourceHighlightLine = -1;
 let sourceFollowLine = -1;
+let sourceFlashOutTimer = undefined;
 
 function addSourceNavigation(vscode) {
     let imgContainer = document.getElementById("image-container");
@@ -64,11 +71,18 @@ function addSourceNavigation(vscode) {
 
     window.addEventListener("message", e => {
         if (!e.data || e.data.action != "highlight") return;
+        clearTimeout(sourceFlashOutTimer);
         sourceHighlightLine = e.data.line;
         applySourceHighlight();
         let moved = sourceHighlightLine >= 0 && sourceHighlightLine !== sourceFollowLine;
         if (sourceHighlightLine >= 0) sourceFollowLine = sourceHighlightLine;
-        if (e.data.reveal || (moved && e.data.follow)) revealSourceHighlight(e.data.reveal);
+        if (e.data.reveal || (moved && e.data.follow)) revealSourceHighlight(e.data.reveal, e.data.transient);
+        if (e.data.transient) {
+            sourceFlashOutTimer = setTimeout(() => {
+                sourceHighlightLine = -1;
+                applySourceHighlight();
+            }, SOURCE_FLASH_OUT_MS);
+        }
     });
 }
 
@@ -131,12 +145,12 @@ function applySourceHighlight() {
     }
     let elements = sourceHighlightElements();
     for (let el of root.querySelectorAll(".source-highlight")) {
-        if (!elements.includes(el)) el.classList.remove("source-highlight", "flash");
+        if (!elements.includes(el)) el.classList.remove("source-highlight", "flash", "flash-out");
     }
     for (let el of elements) el.classList.add("source-highlight");
 }
 
-function revealSourceHighlight(flash) {
+function revealSourceHighlight(flash, transient) {
     let rect = sourceHighlightRect();
     if (!rect) return;
     let visible = rect.left >= 0 && rect.top >= 0 && rect.right <= window.innerWidth && rect.bottom <= window.innerHeight;
@@ -148,9 +162,10 @@ function revealSourceHighlight(flash) {
         });
     }
     if (flash) {
+        let name = transient ? "flash-out" : "flash";
         let elements = sourceHighlightElements();
-        for (let el of elements) el.classList.remove("flash");
+        for (let el of elements) el.classList.remove("flash", "flash-out");
         if (elements.length) void elements[0].getBoundingClientRect();
-        for (let el of elements) el.classList.add("flash");
+        for (let el of elements) el.classList.add(name);
     }
 }

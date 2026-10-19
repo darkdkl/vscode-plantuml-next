@@ -288,6 +288,23 @@ class Previewer extends vscode.Disposable {
         });
         this._disposables.push(disposable);
 
+        disposable = vscode.commands.registerCommand('plantuml.toggleHighlightCursor', () => {
+            this.toggleSetting("previewHighlightCursor").catch(e => showMessagePanel(e));
+        });
+        this._disposables.push(disposable);
+
+        disposable = vscode.commands.registerCommand('plantuml.toggleFollowCursor', () => {
+            this.toggleSetting("previewFollowCursor").catch(e => showMessagePanel(e));
+        });
+        this._disposables.push(disposable);
+
+        disposable = vscode.workspace.onDidChangeConfiguration(e => {
+            if (!e.affectsConfiguration("plantuml.previewHighlightCursor") && !e.affectsConfiguration("plantuml.previewFollowCursor")) return;
+            this.highlighted = null;
+            this.syncHighlight();
+        });
+        this._disposables.push(disposable);
+
         disposable = vscode.commands.registerCommand('plantuml.preview', async () => {
             try {
                 var editor = vscode.window.activeTextEditor;
@@ -411,14 +428,22 @@ class Previewer extends vscode.Disposable {
         let line = this.lineAtCursor();
         if (reveal && line === undefined)
             vscode.window.showInformationMessage("PlantUML: there is no element of the diagram at the cursor to show in the preview.");
-        if (line === this.highlighted && !reveal) return;
-        this.highlighted = line;
+        let persistent = config.previewHighlightCursor;
+        let shown = persistent ? line : undefined;
+        if (!reveal && shown === this.highlighted) return;
+        this.highlighted = shown;
+        let target = reveal ? line : shown;
         this._uiPreview.postMessage({
             action: "highlight",
-            line: line === undefined ? -1 : line,
+            line: target === undefined ? -1 : target,
             reveal: reveal,
-            follow: config.previewFollowCursor,
+            transient: reveal && !persistent,
+            follow: persistent && config.previewFollowCursor,
         });
+    }
+    private async toggleSetting(key: string) {
+        let settings = vscode.workspace.getConfiguration("plantuml");
+        await settings.update(key, !settings.get<boolean>(key), vscode.ConfigurationTarget.Global);
     }
     private lineAtCursor(): number {
         let document = this.displayed.document;
