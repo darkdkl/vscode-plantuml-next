@@ -3,7 +3,7 @@
   "displayName": "PlantUML Next",
   "description": "Rich PlantUML support for Visual Studio Code. A fork of jebbs' PlantUML extension with a faster preview and source navigation.",
   "icon": "images/icon.png",
-  "version": "2.19.3",
+  "version": "2.20.0",
   "publisher": "dark-dmake",
   "engines": {
     "vscode": "^1.57.0"
@@ -44,12 +44,20 @@
     "onCommand:plantuml.exportDocument",
     "onCommand:plantuml.exportWorkspace",
     "onCommand:plantuml.preview",
+    "onCommand:plantuml.revealInPreview",
+    "onCommand:plantuml.toggleHighlightCursor",
+    "onCommand:plantuml.toggleFollowCursor",
     "onCommand:plantuml.URLCurrent",
     "onCommand:plantuml.URLDocument",
     "onCommand:plantuml.extractSource"
   ],
   "main": "./out/src/extension",
   "contributes": {
+    "configurationDefaults": {
+      "[plantuml]": {
+        "editor.gotoLocation.alternativeDefinitionCommand": ""
+      }
+    },
     "languages": [
       {
         "id": "plantuml",
@@ -106,6 +114,21 @@
         "icon": "$(open-preview)"
       },
       {
+        "command": "plantuml.revealInPreview",
+        "title": "%plantuml.revealInPreview.title%",
+        "category": "PlantUML"
+      },
+      {
+        "command": "plantuml.toggleHighlightCursor",
+        "title": "%plantuml.toggleHighlightCursor.title%",
+        "category": "PlantUML"
+      },
+      {
+        "command": "plantuml.toggleFollowCursor",
+        "title": "%plantuml.toggleFollowCursor.title%",
+        "category": "PlantUML"
+      },
+      {
         "command": "plantuml.URLCurrent",
         "title": "%plantuml.URLCurrent.title%",
         "category": "PlantUML"
@@ -126,6 +149,11 @@
         {
           "when": "editorLangId == plantuml",
           "command": "plantuml.preview",
+          "group": "PlantUML"
+        },
+        {
+          "when": "editorLangId == plantuml",
+          "command": "plantuml.revealInPreview",
           "group": "PlantUML"
         },
         {
@@ -167,6 +195,12 @@
       {
         "command": "plantuml.preview",
         "key": "Alt+d"
+      },
+      {
+        "command": "plantuml.revealInPreview",
+        "key": "ctrl+alt+p",
+        "mac": "cmd+alt+p",
+        "when": "editorTextFocus && editorLangId == plantuml"
       }
     ],
     "snippets": [
@@ -296,6 +330,18 @@
           "scope": "resource",
           "default": true,
           "description": "%plantuml.configuration.previewKeepAlive%"
+        },
+        "plantuml.previewHighlightCursor": {
+          "type": "boolean",
+          "scope": "application",
+          "default": false,
+          "description": "%plantuml.configuration.previewHighlightCursor%"
+        },
+        "plantuml.previewFollowCursor": {
+          "type": "boolean",
+          "scope": "application",
+          "default": false,
+          "description": "%plantuml.configuration.previewFollowCursor%"
         },
         "plantuml.previewSnapIndicators": {
           "type": "boolean",

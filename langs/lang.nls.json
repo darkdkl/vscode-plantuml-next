@@ -56,5 +56,6 @@
 	"Bad \"plantuml.java\" config: {0}",
 	"Copying...",
 	"Copied to clipboard",
-	"Copy failed"
+	"Copy failed",
+	"PlantUML: there is no element of the diagram at the cursor to show in the preview."
 ]

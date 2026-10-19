@@ -56,5 +56,6 @@
 	"Bad \"plantuml.java\" config: {0}",
 	"Kopieren...",
 	"In die Zwischenablage kopiert",
-	"Kopieren fehlgeschlagen"
+	"Kopieren fehlgeschlagen",
+	"PlantUML: there is no element of the diagram at the cursor to show in the preview."
 ]

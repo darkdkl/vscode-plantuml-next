@@ -17,6 +17,7 @@ export interface SourceEntity {
 interface SourceBlock {
     // line in the diagram
     line: number;
+    name: string;
     // first and last document lines of the definition
     start: number;
     end: number;
@@ -45,6 +46,7 @@ export class SourceMap {
             added.add(entity.line);
             this.blocks.push({
                 line: entity.line,
+                name: entity.name,
                 start: line,
                 end: blockEnd(document, line, diagramEnd - 1),
             });
@@ -61,6 +63,27 @@ export class SourceMap {
         return new vscode.Range(block.start, 0, block.end, document.lineAt(block.end).text.length);
     }
 
+    nameRangeOf(document: vscode.TextDocument, line: number): vscode.Range {
+        let block = this.blocks.find(b => b.line == line);
+        if (!block) return undefined;
+        let text = document.lineAt(block.start).text;
+        let name = shortName(block.name);
+        let index = name ? text.indexOf(name) : -1;
+        if (index >= 0) return new vscode.Range(block.start, index, block.start, index + name.length);
+        return new vscode.Range(block.start, Math.max(text.search(/\S/), 0), block.start, text.length);
+    }
+
+    lineDeclaredAt(documentLine: number): number {
+        let block = this.blocks.find(b => b.start == documentLine);
+        return block ? block.line : undefined;
+    }
+
+    lineOfName(name: string): number {
+        let block = this.blocks.find(b => b.name === name) ||
+            this.blocks.find(b => shortName(b.name) && shortName(b.name) === shortName(name));
+        return block ? block.line : undefined;
+    }
+
     /**
      * the diagram line of the innermost element defined at a document line
      */
@@ -74,11 +97,14 @@ export class SourceMap {
     }
 }
 
+function shortName(name: string): string {
+    return name.split(/\.|::/).pop();
+}
+
 function nameMatches(text: string, name: string): boolean {
     // generated names, like notes "GMN12" and states ".start.", can't be checked
     if (!name || name.startsWith(".") || /^GMN\d+$/.test(name)) return true;
-    let shortName = name.split(/\.|::/).pop();
-    return text.includes(shortName);
+    return text.includes(shortName(name));
 }
 
 const noteStartReg = /^\s*(note|legend|rnote|hnote)\b[^:]*$/i;

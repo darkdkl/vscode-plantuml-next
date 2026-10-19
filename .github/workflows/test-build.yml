@@ -1,0 +1,55 @@
+name: Test build
+
+on:
+  push:
+    branches: [test]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: test-build
+  cancel-in-progress: true
+
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check types
+        run: npm run typecheck
+
+      - name: Check preview scripts
+        run: for f in templates/js/*.js; do node --check "$f"; done
+
+      - name: Download plantuml.jar
+        run: gh release download --repo plantuml/plantuml --pattern 'plantuml-mit-1.*[0-9].jar' --output plantuml.jar
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Package the extension
+        run: npm run package
+
+      - name: Recreate the test prerelease
+        run: |
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          file="$name-$version-test.vsix"
+          mv "$name-$version.vsix" "$file"
+          gh release delete test-build --cleanup-tag --yes --repo "$GITHUB_REPOSITORY" || true
+          gh release create test-build "$file" --repo "$GITHUB_REPOSITORY" --prerelease --target "$GITHUB_SHA" \
+            --title "Test build" \
+            --notes "Not a release. Version $version, built from \`test\` at ${GITHUB_SHA::7} on $(date -u '+%Y-%m-%d %H:%M UTC'). Replaced on every push to \`test\`."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

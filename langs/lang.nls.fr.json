@@ -56,5 +56,6 @@
 	"Bad \"plantuml.java\" config: {0}",
 	"Copier...",
 	"Copié dans le presse-papier",
-	"Échec de la copie"
+	"Échec de la copie",
+	"PlantUML: there is no element of the diagram at the cursor to show in the preview."
 ]

@@ -8,7 +8,7 @@ import { Diagram } from '../plantuml/diagram/diagram';
 import { diagramsOf, currentDiagram, diagramAt } from '../plantuml/diagram/tools';
 import { SourceMap, SourceEntity } from '../plantuml/diagram/sourceMap';
 import { config } from '../plantuml/config';
-import { localize, extensionPath } from '../plantuml/common';
+import { localize, extensionPath, languageid } from '../plantuml/common';
 import { parseError, calculateExportPath, addFileIndex, showMessagePanel, fileToBase64 } from '../plantuml/tools';
 import { exportToBuffer } from "../plantuml/exporter/exportToBuffer";
 import { UI } from '../ui/ui';
@@ -47,6 +47,9 @@ class Previewer extends vscode.Disposable {
     private sourceEntities: SourceEntity[] = [];
     private sourceMap: { key: string, map: SourceMap } = undefined;
     private highlighted: number = undefined;
+    private pendingReveal: { document: vscode.TextDocument, index: number } = undefined;
+    private followed: number = undefined;
+    private pendingDefinition: { uri: string, position: vscode.Position, time: number } = undefined;
 
     constructor() {
         super(() => this.dispose());
@@ -65,6 +68,7 @@ class Previewer extends vscode.Disposable {
         this.imageError = "";
         this.error = "";
         this.resetPageStatus = true;
+        this.displayed = undefined;
     }
 
     updateWebView(): string {
@@ -207,6 +211,7 @@ class Previewer extends vscode.Disposable {
     private async doUpdate(processingTip: boolean) {
         let diagram = currentDiagram();
         if (!diagram) {
+            this.pendingReveal = undefined;
             this.status = previewStatus.error;
             this.error = localize(3, null);
             this.images = [];
@@ -227,6 +232,7 @@ class Previewer extends vscode.Disposable {
                 if (task.canceled) return;
                 this.task = null;
                 this.status = previewStatus.default;
+                if (!this.isDisplayed(source.document, source.index)) this.followed = undefined;
                 this.displayed = source;
 
                 this.error = "";
@@ -257,6 +263,7 @@ class Previewer extends vscode.Disposable {
             error => {
                 if (task.canceled) return;
                 this.task = null;
+                this.pendingReveal = undefined;
                 this.status = previewStatus.error;
                 let err = parseError(error)[0];
                 this.error = err.error;
@@ -276,6 +283,33 @@ class Previewer extends vscode.Disposable {
         let disposable: vscode.Disposable;
 
         //register command
+        disposable = vscode.languages.registerDefinitionProvider({ language: languageid }, {
+            provideDefinition: (document, position) => this.definitionAt(document, position),
+        });
+        this._disposables.push(disposable);
+
+        disposable = vscode.commands.registerCommand('plantuml.revealInPreview', () => {
+            this.revealInPreview().catch(e => showMessagePanel(e));
+        });
+        this._disposables.push(disposable);
+
+        disposable = vscode.commands.registerCommand('plantuml.toggleHighlightCursor', () => {
+            this.toggleSetting("previewHighlightCursor").catch(e => showMessagePanel(e));
+        });
+        this._disposables.push(disposable);
+
+        disposable = vscode.commands.registerCommand('plantuml.toggleFollowCursor', () => {
+            this.toggleSetting("previewFollowCursor").catch(e => showMessagePanel(e));
+        });
+        this._disposables.push(disposable);
+
+        disposable = vscode.workspace.onDidChangeConfiguration(e => {
+            if (!e.affectsConfiguration("plantuml.previewHighlightCursor") && !e.affectsConfiguration("plantuml.previewFollowCursor")) return;
+            this.highlighted = null;
+            this.syncHighlight();
+        });
+        this._disposables.push(disposable);
+
         disposable = vscode.commands.registerCommand('plantuml.preview', async () => {
             try {
                 var editor = vscode.window.activeTextEditor;
@@ -316,7 +350,10 @@ class Previewer extends vscode.Disposable {
                 this.sourceEntities = e.message.entities || [];
                 this.sourceMap = undefined;
                 this.highlighted = undefined;
-                this.syncHighlight();
+                let target = this.pendingReveal;
+                let reveal = !!target && this.isDisplayed(target.document, target.index);
+                if (reveal) this.pendingReveal = undefined;
+                this.syncHighlight(reveal);
             } else {
                 this.setUIStatus(JSON.stringify(e.message));
             }
@@ -326,6 +363,8 @@ class Previewer extends vscode.Disposable {
             this.stopWatch();
             this.killTasks();
             this.pageReady = false;
+            this.displayed = undefined;
+            this.pendingReveal = undefined;
             // PlantUML processes are kept for the preview only
             warmProcesses.dispose();
         });
@@ -351,6 +390,7 @@ class Previewer extends vscode.Disposable {
         disposables.push(disposable);
         disposable = vscode.window.onDidChangeTextEditorSelection(e => {
             this.syncHighlight();
+            this.revealOnDefinition(e);
             if (!config.previewAutoUpdate) return;
             lastTimestamp = new Date().getTime();
             setTimeout(() => {
@@ -392,23 +432,102 @@ class Previewer extends vscode.Disposable {
         editor.revealRange(range, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
     }
     // highlight the diagram element defined at the cursor
-    private syncHighlight() {
+    private syncHighlight(reveal: boolean = false) {
         if (!this.pageReady || !this.displayed) return;
+        let line = this.lineAtCursor();
+        if (reveal && line === undefined)
+            vscode.window.showInformationMessage(localize(58, null));
+        let persistent = config.previewHighlightCursor;
+        let follow = config.previewFollowCursor;
+        if (reveal) {
+            this.highlighted = persistent ? line : undefined;
+            this.followed = line;
+            this.postHighlight(line, true, !persistent, follow);
+            return;
+        }
+        if (persistent) {
+            if (line === this.highlighted) return;
+            this.highlighted = line;
+            this.followed = line;
+            this.postHighlight(line, false, false, follow);
+            return;
+        }
+        if (this.highlighted !== undefined) {
+            this.highlighted = undefined;
+            this.postHighlight(undefined, false, false, false);
+        }
+        let moved = line !== undefined && line !== this.followed;
+        this.followed = line;
+        if (follow && moved) this.postHighlight(line, false, true, true);
+    }
+    private postHighlight(line: number, reveal: boolean, transient: boolean, follow: boolean) {
+        this._uiPreview.postMessage({
+            action: "highlight",
+            line: line === undefined ? -1 : line,
+            reveal: reveal,
+            transient: transient,
+            follow: follow,
+        });
+    }
+    private async toggleSetting(key: string) {
+        let settings = vscode.workspace.getConfiguration("plantuml");
+        await settings.update(key, !settings.get<boolean>(key), vscode.ConfigurationTarget.Global);
+    }
+    private lineAtCursor(): number {
         let document = this.displayed.document;
         let editor = vscode.window.activeTextEditor;
         // the preview itself may have the focus
         if (!editor || editor.document !== document)
             editor = vscode.window.visibleTextEditors.find(e => e.document === document);
-        let line: number = undefined;
-        if (editor && this.sourceEntities.length) {
-            let cursor = editor.selection.active.line;
-            let diagram = diagramAt(document, cursor);
-            if (diagram && diagram.index === this.displayed.index)
-                line = this.sourceMapOf(diagram).lineOf(cursor);
+        if (!editor || !this.sourceEntities.length) return undefined;
+        let cursor = editor.selection.active.line;
+        let diagram = diagramAt(document, cursor);
+        if (!diagram || diagram.index !== this.displayed.index) return undefined;
+        return this.sourceMapOf(diagram).lineOf(cursor);
+    }
+    private definitionAt(document: vscode.TextDocument, position: vscode.Position): vscode.LocationLink[] {
+        if (!this.displayed || document !== this.displayed.document || !this.sourceEntities.length) return undefined;
+        let diagram = diagramAt(document, position.line);
+        if (!diagram || diagram.index !== this.displayed.index) return undefined;
+        let map = this.sourceMapOf(diagram);
+        let word = document.getWordRangeAtPosition(position, /[\p{L}\p{N}_.$]+/u);
+        let line = word ? map.lineOfName(document.getText(word)) : undefined;
+        if (line === undefined) line = map.lineDeclaredAt(position.line);
+        if (line === undefined) return undefined;
+        let target = map.nameRangeOf(document, line);
+        this.pendingDefinition = { uri: document.uri.toString(), position: target.start, time: Date.now() };
+        return [{
+            originSelectionRange: word,
+            targetUri: document.uri,
+            targetRange: map.rangeOf(document, line),
+            targetSelectionRange: target,
+        }];
+    }
+    private isDisplayed(document: vscode.TextDocument, index: number): boolean {
+        return !!this.displayed && this.displayed.document === document && this.displayed.index === index;
+    }
+    private revealOnDefinition(e: vscode.TextEditorSelectionChangeEvent) {
+        let pending = this.pendingDefinition;
+        if (!pending || Date.now() - pending.time > 2000) return;
+        if (e.kind !== vscode.TextEditorSelectionChangeKind.Command) return;
+        if (e.textEditor.document.uri.toString() !== pending.uri) return;
+        if (!e.selections[0].start.isEqual(pending.position)) return;
+        this.pendingDefinition = undefined;
+        this._uiPreview.reveal(e.textEditor.viewColumn);
+        this.syncHighlight(true);
+    }
+    private async revealInPreview() {
+        let editor = vscode.window.activeTextEditor;
+        if (!editor) return;
+        let diagram = diagramAt(editor.document, editor.selection.active.line);
+        if (!diagram) return;
+        if (!this.pageReady || !this.isDisplayed(editor.document, diagram.index)) {
+            this.pendingReveal = { document: editor.document, index: diagram.index };
+            await vscode.commands.executeCommand('plantuml.preview');
+            return;
         }
-        if (line === this.highlighted) return;
-        this.highlighted = line;
-        this._uiPreview.postMessage({ action: "highlight", line: line === undefined ? -1 : line });
+        this._uiPreview.reveal(editor.viewColumn);
+        this.syncHighlight(true);
     }
     stopWatch() {
         for (let d of this.watchDisposables) {

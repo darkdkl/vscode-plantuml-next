@@ -56,5 +56,6 @@
 	"Bad \"plantuml.java\" config: {0}",
 	"正在復制...",
 	"複製到剪貼板",
-	"複製失敗"
+	"複製失敗",
+	"PlantUML: there is no element of the diagram at the cursor to show in the preview."
 ]
