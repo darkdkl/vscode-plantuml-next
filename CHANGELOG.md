@@ -2,9 +2,10 @@
 
 ## 2.20.0
 
-- The element at the editor cursor is outlined in the preview with a frame that stays visible at any zoom
+- The element at the editor cursor glows in the preview, and the glow stays visible at any zoom
 - The preview scrolls to that element when the cursor moves to another element out of view. Setting: `plantuml.previewFollowCursor`
-- New command "PlantUML: Show in Preview" (editor context menu): scrolls the preview to the element at the cursor and flashes it
+- Cmd+click (Ctrl+click) an element's name in the editor, or Go to Definition (F12): goes to the element's definition and scrolls the preview to it. Works while the preview is open
+- New command "PlantUML: Show in Preview" (editor context menu, Cmd+Alt+P / Ctrl+Alt+P): scrolls the preview to the element at the cursor and flashes it
 
 ## 2.19.3
 

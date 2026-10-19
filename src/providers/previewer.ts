@@ -8,7 +8,7 @@ import { Diagram } from '../plantuml/diagram/diagram';
 import { diagramsOf, currentDiagram, diagramAt } from '../plantuml/diagram/tools';
 import { SourceMap, SourceEntity } from '../plantuml/diagram/sourceMap';
 import { config } from '../plantuml/config';
-import { localize, extensionPath } from '../plantuml/common';
+import { localize, extensionPath, languageid } from '../plantuml/common';
 import { parseError, calculateExportPath, addFileIndex, showMessagePanel, fileToBase64 } from '../plantuml/tools';
 import { exportToBuffer } from "../plantuml/exporter/exportToBuffer";
 import { UI } from '../ui/ui';
@@ -48,6 +48,7 @@ class Previewer extends vscode.Disposable {
     private sourceMap: { key: string, map: SourceMap } = undefined;
     private highlighted: number = undefined;
     private pendingReveal: boolean = false;
+    private pendingDefinition: { uri: string, position: vscode.Position, time: number } = undefined;
 
     constructor() {
         super(() => this.dispose());
@@ -277,6 +278,11 @@ class Previewer extends vscode.Disposable {
         let disposable: vscode.Disposable;
 
         //register command
+        disposable = vscode.languages.registerDefinitionProvider({ language: languageid }, {
+            provideDefinition: (document, position) => this.definitionAt(document, position),
+        });
+        this._disposables.push(disposable);
+
         disposable = vscode.commands.registerCommand('plantuml.revealInPreview', () => {
             this.revealInPreview().catch(e => showMessagePanel(e));
         });
@@ -358,6 +364,7 @@ class Previewer extends vscode.Disposable {
         disposables.push(disposable);
         disposable = vscode.window.onDidChangeTextEditorSelection(e => {
             this.syncHighlight();
+            this.revealOnDefinition(e);
             if (!config.previewAutoUpdate) return;
             lastTimestamp = new Date().getTime();
             setTimeout(() => {
@@ -424,6 +431,33 @@ class Previewer extends vscode.Disposable {
         let diagram = diagramAt(document, cursor);
         if (!diagram || diagram.index !== this.displayed.index) return undefined;
         return this.sourceMapOf(diagram).lineOf(cursor);
+    }
+    private definitionAt(document: vscode.TextDocument, position: vscode.Position): vscode.LocationLink[] {
+        if (!this.displayed || document !== this.displayed.document || !this.sourceEntities.length) return undefined;
+        let diagram = diagramAt(document, position.line);
+        if (!diagram || diagram.index !== this.displayed.index) return undefined;
+        let map = this.sourceMapOf(diagram);
+        let word = document.getWordRangeAtPosition(position, /[\p{L}\p{N}_.$]+/u);
+        let line = word ? map.lineOfName(document.getText(word)) : undefined;
+        if (line === undefined) line = map.lineOf(position.line);
+        if (line === undefined) return undefined;
+        let target = map.nameRangeOf(document, line);
+        this.pendingDefinition = { uri: document.uri.toString(), position: target.start, time: Date.now() };
+        return [{
+            originSelectionRange: word,
+            targetUri: document.uri,
+            targetRange: map.rangeOf(document, line),
+            targetSelectionRange: target,
+        }];
+    }
+    private revealOnDefinition(e: vscode.TextEditorSelectionChangeEvent) {
+        let pending = this.pendingDefinition;
+        if (!pending || Date.now() - pending.time > 2000) return;
+        if (e.textEditor.document.uri.toString() !== pending.uri) return;
+        if (!e.selections[0].start.isEqual(pending.position)) return;
+        this.pendingDefinition = undefined;
+        this._uiPreview.reveal();
+        this.syncHighlight(true);
     }
     private async revealInPreview() {
         let editor = vscode.window.activeTextEditor;

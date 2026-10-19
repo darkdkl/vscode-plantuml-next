@@ -178,6 +178,12 @@
       {
         "command": "plantuml.preview",
         "key": "Alt+d"
+      },
+      {
+        "command": "plantuml.revealInPreview",
+        "key": "ctrl+alt+p",
+        "mac": "cmd+alt+p",
+        "when": "editorTextFocus && editorLangId == plantuml"
       }
     ],
     "snippets": [

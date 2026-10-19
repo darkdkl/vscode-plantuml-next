@@ -5,12 +5,18 @@
 
 const SOURCE_NAV_STYLE = `
 :host-context(.source-nav) [data-source-line] { cursor: pointer; }
+.source-highlight {
+    filter: drop-shadow(0 0 var(--source-glow-1) #0089c9) drop-shadow(0 0 var(--source-glow-2) #0089c9);
+}
+.source-highlight.flash { animation: source-highlight-flash 0.5s ease-out 2; }
+@keyframes source-highlight-flash {
+    50% { filter: drop-shadow(0 0 var(--source-glow-2) #0089c9) drop-shadow(0 0 var(--source-glow-3) #0089c9); }
+}
 `;
-const SOURCE_HIGHLIGHT_PADDING = 4;
+const SOURCE_GLOW_PIXELS = [3, 6, 12];
 
 let sourceHighlightLine = -1;
 let sourceFollowLine = -1;
-let sourceHighlightBox = undefined;
 
 function addSourceNavigation(vscode) {
     let imgContainer = document.getElementById("image-container");
@@ -55,10 +61,6 @@ function addSourceNavigation(vscode) {
     // the modifier may be pressed outside the preview
     imgContainer.addEventListener("mousemove", setNavMode);
     window.addEventListener("blur", () => setNavMode(undefined));
-
-    sourceHighlightBox = document.createElement("div");
-    sourceHighlightBox.id = "source-highlight";
-    imgContainer.appendChild(sourceHighlightBox);
 
     window.addEventListener("message", e => {
         if (!e.data || e.data.action != "highlight") return;
@@ -113,21 +115,25 @@ function sourceHighlightRect() {
     return rect;
 }
 
+function sourceHighlightElements() {
+    let root = sourceRoot();
+    if (!root || sourceHighlightLine < 0) return [];
+    return Array.from(root.querySelectorAll(`[data-source-line="${sourceHighlightLine}"]`));
+}
+
 function applySourceHighlight() {
-    if (!sourceHighlightBox) return;
-    if (zoomer && zoomer.pending) return;
-    let rect = sourceHighlightRect();
-    if (!rect) {
-        sourceHighlightBox.style.display = "none";
-        return;
+    let root = sourceRoot();
+    if (!root) return;
+    let host = switcher.svgImage;
+    let scale = host.getBoundingClientRect().width / host.naturalWidth;
+    if (scale > 0 && !(zoomer && zoomer.pending)) {
+        SOURCE_GLOW_PIXELS.forEach((pixels, i) => host.style.setProperty(`--source-glow-${i + 1}`, `${pixels / scale}px`));
     }
-    let container = sourceHighlightBox.parentElement.getBoundingClientRect();
-    let pad = SOURCE_HIGHLIGHT_PADDING;
-    sourceHighlightBox.style.left = (rect.left - container.left - pad) + "px";
-    sourceHighlightBox.style.top = (rect.top - container.top - pad) + "px";
-    sourceHighlightBox.style.width = (rect.right - rect.left + 2 * pad) + "px";
-    sourceHighlightBox.style.height = (rect.bottom - rect.top + 2 * pad) + "px";
-    sourceHighlightBox.style.display = "block";
+    let elements = sourceHighlightElements();
+    for (let el of root.querySelectorAll(".source-highlight")) {
+        if (!elements.includes(el)) el.classList.remove("source-highlight", "flash");
+    }
+    for (let el of elements) el.classList.add("source-highlight");
 }
 
 function revealSourceHighlight(flash) {
@@ -142,8 +148,9 @@ function revealSourceHighlight(flash) {
         });
     }
     if (flash) {
-        sourceHighlightBox.classList.remove("flash");
-        void sourceHighlightBox.offsetWidth;
-        sourceHighlightBox.classList.add("flash");
+        let elements = sourceHighlightElements();
+        for (let el of elements) el.classList.remove("flash");
+        if (elements.length) void elements[0].getBoundingClientRect();
+        for (let el of elements) el.classList.add("flash");
     }
 }
