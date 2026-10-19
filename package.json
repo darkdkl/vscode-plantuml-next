@@ -51,6 +51,11 @@
   ],
   "main": "./out/src/extension",
   "contributes": {
+    "configurationDefaults": {
+      "[plantuml]": {
+        "editor.gotoLocation.alternativeDefinitionCommand": ""
+      }
+    },
     "languages": [
       {
         "id": "plantuml",
