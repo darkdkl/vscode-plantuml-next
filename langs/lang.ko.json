@@ -56,5 +56,6 @@
 	"잘못된 \"plantuml.java\" 설정: {0}",
 	"사자...",
 	"클립보드에 복사됨",
-	"복사 실패"
+	"복사 실패",
+	"PlantUML: there is no element of the diagram at the cursor to show in the preview."
 ]

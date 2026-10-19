@@ -73,6 +73,11 @@ export class SourceMap {
         return new vscode.Range(block.start, Math.max(text.search(/\S/), 0), block.start, text.length);
     }
 
+    lineDeclaredAt(documentLine: number): number {
+        let block = this.blocks.find(b => b.start == documentLine);
+        return block ? block.line : undefined;
+    }
+
     lineOfName(name: string): number {
         let block = this.blocks.find(b => b.name === name) ||
             this.blocks.find(b => shortName(b.name) && shortName(b.name) === shortName(name));

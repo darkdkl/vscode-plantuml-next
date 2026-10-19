@@ -143,11 +143,19 @@ function isRectVisible(rect) {
     return rect.left >= 0 && rect.top >= 0 && rect.right <= window.innerWidth && rect.bottom <= window.innerHeight;
 }
 
-function sourceRectOf(line) {
+function sourceElementsOf(line) {
     let root = sourceRoot();
-    if (!root || line < 0) return undefined;
+    if (!root || line < 0) return [];
+    return Array.from(root.querySelectorAll(`[data-source-line="${line}"]`));
+}
+
+function sourceHighlightElements() {
+    return sourceElementsOf(sourceHighlightLine);
+}
+
+function sourceRectOf(line) {
     let rect = undefined;
-    for (let el of root.querySelectorAll(`[data-source-line="${line}"]`)) {
+    for (let el of sourceElementsOf(line)) {
         let r = el.getBoundingClientRect();
         if (!r.width && !r.height) continue;
         rect = rect ? {
@@ -158,12 +166,6 @@ function sourceRectOf(line) {
         } : { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
     }
     return rect;
-}
-
-function sourceHighlightElements() {
-    let root = sourceRoot();
-    if (!root || sourceHighlightLine < 0) return [];
-    return Array.from(root.querySelectorAll(`[data-source-line="${sourceHighlightLine}"]`));
 }
 
 function applySourceHighlight() {

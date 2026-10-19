@@ -56,5 +56,6 @@
   "Configuración incorrecta de \"plantuml.java\": {0}",
 	"Proceso de copiar...",
 	"Copiado al portapapeles",
-	"Copiar falló"
+	"Copiar falló",
+	"PlantUML: there is no element of the diagram at the cursor to show in the preview."
 ]

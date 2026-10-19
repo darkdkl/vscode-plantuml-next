@@ -56,5 +56,6 @@
 	"错误的 \"plantuml.java\" 配置: {0}",
 	"正在复制...",
 	"已复制到剪贴板",
-	"复制失败"
+	"复制失败",
+	"PlantUML: there is no element of the diagram at the cursor to show in the preview."
 ]
