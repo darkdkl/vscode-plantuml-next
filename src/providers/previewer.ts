@@ -9,10 +9,12 @@ import { diagramsOf, nearestDiagram, diagramAt } from '../plantuml/diagram/tools
 import { SourceMap, SourceEntity } from '../plantuml/diagram/sourceMap';
 import { config } from '../plantuml/config';
 import { localize, extensionPath, languageid } from '../plantuml/common';
-import { parseError, calculateExportPath, addFileIndex, showMessagePanel, fileToBase64 } from '../plantuml/tools';
+import { parseError, calculateExportPath, addFileIndex, showMessagePanel, fileToBase64, logMessage } from '../plantuml/tools';
 import { exportToBuffer } from "../plantuml/exporter/exportToBuffer";
 import { UI } from '../ui/ui';
 import { warmProcesses } from '../plantuml/renders/warmProcess';
+
+const KILL_TIMEOUT_MS = 3000;
 
 enum previewStatus {
     default,
@@ -29,6 +31,8 @@ class Previewer extends vscode.Disposable {
     private rendered: Diagram;
     private task: RenderTask;
     private taskKilling: boolean;
+    private updateQueued: boolean = false;
+    private queuedProcessingTip: boolean = false;
 
     private images: string[];
     private imageError: string;
@@ -161,9 +165,17 @@ class Previewer extends vscode.Disposable {
         this.previewPageStatus = status;
     }
     async update(processingTip: boolean) {
+        this.updateQueued = true;
+        this.queuedProcessingTip = this.queuedProcessingTip || processingTip;
         if (this.taskKilling) return;
         await this.killTasks();
-        // console.log("updating...");
+        this.runQueuedUpdate();
+    }
+    private runQueuedUpdate() {
+        if (!this.updateQueued) return;
+        let processingTip = this.queuedProcessingTip;
+        this.updateQueued = false;
+        this.queuedProcessingTip = false;
         // do not await doUpdate, so that preview window could open before update task finish.
         this.doUpdate(processingTip).catch(e => showMessagePanel(e));
     }
@@ -179,27 +191,30 @@ class Previewer extends vscode.Disposable {
         ).then(() => {
             this.task = null;
             this.taskKilling = false;
+            this.runQueuedUpdate();
         });
     }
-    private killTask(process: child_process.ChildProcess) {
-        return new Promise((resolve, reject) => {
-            process.on('exit', (code, sig) => {
-                // console.log(`Killed ${process.pid} with code ${code} and signal ${sig}!`);
-                resolve(true);
+    private killTask(process: child_process.ChildProcess): Promise<void> {
+        if (process.pid === undefined || process.exitCode !== null || process.signalCode !== null) return Promise.resolve();
+        return new Promise(resolve => {
+            let timer = setTimeout(() => {
+                logMessage(`PlantUML process ${process.pid} did not stop in ${KILL_TIMEOUT_MS / 1000} s, killing it`);
+                process.kill('SIGKILL');
+                resolve();
+            }, KILL_TIMEOUT_MS);
+            process.once('exit', () => {
+                clearTimeout(timer);
+                resolve();
             });
-            
-            if(!process.kill('SIGINT') && process.exitCode != null){
-                // console.log(`Process ${process.pid} exited with status code ${process.exitCode}`);
-                resolve(true);
-            }
-        })
+            process.kill('SIGINT');
+        });
     }
     get TargetChanged(): boolean {
-        let current = nearestDiagram();
+        let current = this.targetDiagram();
         if (!current) return false;
         let changed = (!this.rendered || !this.rendered.isEqual(current));
+        this.rendered = current;
         if (changed) {
-            this.rendered = current;
             this.error = "";
             this.images = [];
             this.imageError = "";
@@ -208,8 +223,34 @@ class Previewer extends vscode.Disposable {
         }
         return changed;
     }
+    private keptDiagram(document: vscode.TextDocument): Diagram {
+        if (!this.rendered || this.rendered.document !== document) return undefined;
+        let line = this.rendered.start.line;
+        if (line >= document.lineCount) return undefined;
+        let diagram = diagramAt(document, line);
+        if (diagram && diagram.start.line === line) return diagram;
+    }
+    private followEdits(e: vscode.TextDocumentChangeEvent) {
+        if (!this.rendered || this.rendered.document !== e.document) return;
+        let line = this.rendered.start.line;
+        let shift = 0;
+        for (let change of e.contentChanges) {
+            let end = change.range.end;
+            if (end.line > line || (end.line === line && end.character > 0)) continue;
+            shift += change.text.split("\n").length - 1 - (end.line - change.range.start.line);
+        }
+        if (!shift) return;
+        let diagram = diagramAt(e.document, line + shift);
+        if (diagram && diagram.start.line === line + shift) this.rendered = diagram;
+    }
+    private targetDiagram(): Diagram {
+        let editor = vscode.window.activeTextEditor;
+        if (!editor) return undefined;
+        let line = editor.selection.anchor.line;
+        return diagramAt(editor.document, line) || this.keptDiagram(editor.document) || nearestDiagram(editor.document, line);
+    }
     private async doUpdate(processingTip: boolean) {
-        let diagram = nearestDiagram();
+        let diagram = this.targetDiagram();
         if (!diagram) {
             this.pendingReveal = undefined;
             this.status = previewStatus.error;
@@ -361,6 +402,8 @@ class Previewer extends vscode.Disposable {
         this._uiPreview.addEventListener("open", () => this.startWatch());
         this._uiPreview.addEventListener("close", () => {
             this.stopWatch();
+            this.updateQueued = false;
+            this.queuedProcessingTip = false;
             this.killTasks();
             this.pageReady = false;
             this.displayed = undefined;
@@ -376,13 +419,14 @@ class Previewer extends vscode.Disposable {
         //register watcher
         let lastTimestamp = new Date().getTime();
         disposable = vscode.workspace.onDidChangeTextDocument(e => {
-            if (!config.previewAutoUpdate) return;
             if (!e || !e.document || !e.document.uri) return;
+            this.followEdits(e);
+            if (!config.previewAutoUpdate) return;
             if (e.document.uri.scheme == "plantuml") return;
             lastTimestamp = new Date().getTime();
             setTimeout(() => {
                 if (new Date().getTime() - lastTimestamp >= 400) {
-                    if (!nearestDiagram()) return;
+                    if (!this.targetDiagram()) return;
                     this.update(false);
                 }
             }, 500);
