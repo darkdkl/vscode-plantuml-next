@@ -1,5 +1,10 @@
 # PlantUML Next Changelog
 
+## 2.20.2
+
+- Fix: the preview could stop updating while `@enduml` was being typed (`@endu`, `@endum`), with an upper case `@ENDUML`, or with an end line of another diagram type. Such diagrams are rendered by a one-off PlantUML run, like a diagram without `@enduml`
+- The "PlantUML" output notes a diagram without a matching `@end…` line once, not on every update
+
 ## 2.20.1
 
 - Fix: the preview never finished loading when `@startuml` or `@enduml` was indented, when a diagram had no `@enduml` yet (while typing), or when a file had no `@start`/`@end` lines at all

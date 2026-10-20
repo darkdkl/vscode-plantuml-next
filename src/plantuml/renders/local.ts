@@ -15,6 +15,7 @@ import { logMessage } from '../tools';
 setWarmProcessLogger(logMessage);
 
 class LocalRender implements IRender {
+    private unpairedDiagram: string = undefined;
 
     /**
      * Indicates the exporter should limt concurrency or not.
@@ -118,7 +119,13 @@ class LocalRender implements IRender {
         // stop the processes of previously previewed diagrams
         warmProcesses.retain(java, params.slice(0, MAX_WARM_PAGES));
         let content = pipeContent(diagram.content);
-        if (content === undefined) logMessage(`${diagram.name}: no @start/@end lines, rendering without a running PlantUML process`);
+        let diagramKey = `${diagram.path}:${diagram.start ? diagram.start.line : 0}`;
+        if (content !== undefined) {
+            if (this.unpairedDiagram === diagramKey) this.unpairedDiagram = undefined;
+        } else if (this.unpairedDiagram !== diagramKey) {
+            this.unpairedDiagram = diagramKey;
+            logMessage(`${diagram.name}: no @start/@end lines, rendering without a running PlantUML process`);
+        }
         let fileName = diagram.path ? path.basename(diagram.path) : diagram.name;
 
         let task = <RenderTask>{ processes: [], canceled: false };
@@ -222,7 +229,8 @@ function pipeContent(content: string): string {
     let last = lines.length - 1;
     while (last > first && lines[last].trim() === "") last--;
     if (first < 0 || first == last) return undefined;
-    if (!/^\s*@start\w+/i.test(lines[first]) || !/^\s*@end\w+/i.test(lines[last])) return undefined;
+    let start = lines[first].trim().match(/^@start([a-z]+)/);
+    if (!start || !lines[last].trim().startsWith("@end" + start[1])) return undefined;
     lines[first] = lines[first].trim();
     lines[last] = lines[last].trim();
     return lines.join("\n");
