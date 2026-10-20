@@ -1,5 +1,16 @@
 # PlantUML Next Changelog
 
+## 2.20.2
+
+- Fix: with the "PlantUML" output open, each new line in it re-rendered the preview, so a slow diagram could be rendered over and over and a very slow one never finished
+- Fix: the preview could stop updating while `@enduml` was being typed (`@endu`, `@endum`), with an upper case `@ENDUML`, or with an end line of another diagram type. Such diagrams are rendered by a one-off PlantUML run, like a diagram without `@enduml`
+- The "PlantUML" output notes a diagram without a matching `@end…` line once, not on every update
+- The preview shows the nearest diagram when the cursor is outside of diagrams: the one above the cursor (e.g. on an empty line after `@enduml`), or the first one below. It used to say "No valid diagram found here!". When the preview already shows a diagram of this file, it keeps showing it (and its zoom) while the cursor is between diagrams
+- A one-off PlantUML run is stopped when a newer edit replaces it, so typing an unfinished diagram doesn't pile up Java processes
+- Fix: without Java, an unfinished diagram showed an empty preview; it now shows the error, like a finished one
+- Fix: the preview could stop updating for good when a PlantUML process it was stopping had already been killed (e.g. by the system when out of memory) or ignored the stop request. Such a process is now killed after 3 s, and the "PlantUML" output notes it
+- Several diagrams sent at once (an unfinished diagram above finished ones) are rendered by a one-off PlantUML run, so the preview can't get an answer meant for another update
+
 ## 2.20.1
 
 - Fix: the preview never finished loading when `@startuml` or `@enduml` was indented, when a diagram had no `@enduml` yet (while typing), or when a file had no `@start`/`@end` lines at all

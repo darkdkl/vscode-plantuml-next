@@ -15,6 +15,7 @@ import { logMessage } from '../tools';
 setWarmProcessLogger(logMessage);
 
 class LocalRender implements IRender {
+    private unpairedDiagram: string = undefined;
 
     /**
      * Indicates the exporter should limt concurrency or not.
@@ -118,7 +119,13 @@ class LocalRender implements IRender {
         // stop the processes of previously previewed diagrams
         warmProcesses.retain(java, params.slice(0, MAX_WARM_PAGES));
         let content = pipeContent(diagram.content);
-        if (content === undefined) logMessage(`${diagram.name}: no @start/@end lines, rendering without a running PlantUML process`);
+        let diagramKey = `${diagram.path}:${diagram.index}`;
+        if (content !== undefined) {
+            if (this.unpairedDiagram === diagramKey) this.unpairedDiagram = undefined;
+        } else if (this.unpairedDiagram !== diagramKey) {
+            this.unpairedDiagram = diagramKey;
+            logMessage(`${diagram.name}: no @start/@end lines, rendering without a running PlantUML process`);
+        }
         let fileName = diagram.path ? path.basename(diagram.path) : diagram.name;
 
         let task = <RenderTask>{ processes: [], canceled: false };
@@ -129,7 +136,7 @@ class LocalRender implements IRender {
                 let label = diagram.pageCount > 1 ? `${fileName}, page ${index + 1}` : fileName;
                 let render: Promise<Buffer> = content !== undefined && index < MAX_WARM_PAGES ?
                     warmProcesses.render(java, pageParams, content, label, () => task.canceled) :
-                    this.renderOnce(java, pageParams, diagram.content);
+                    this.renderOnce(java, pageParams, diagram.content, task);
                 return render
                     .then(
                         out => [...buffers, out],
@@ -140,11 +147,16 @@ class LocalRender implements IRender {
         );
         return task;
     }
-    private renderOnce(java: string, params: string[], content: string): Promise<Buffer> {
+    private renderOnce(java: string, params: string[], content: string, task: RenderTask): Promise<Buffer> {
         let process = child_process.spawn(java, params);
+        task.processes.push(process);
+        let failed = new Promise<Buffer>((resolve, reject) =>
+            process.on('error', err => reject(<RenderError>{ error: err.message, out: Buffer.alloc(0) }))
+        );
+        process.stdin.on('error', () => { });
         process.stdin.write(content);
         process.stdin.end();
-        return processWrapper(process);
+        return Promise.race([failed, processWrapper(process)]);
     }
     private checkJava(diagram: Diagram): string {
         if (!config.java) return localize(5, null);
@@ -222,7 +234,9 @@ function pipeContent(content: string): string {
     let last = lines.length - 1;
     while (last > first && lines[last].trim() === "") last--;
     if (first < 0 || first == last) return undefined;
-    if (!/^\s*@start\w+/i.test(lines[first]) || !/^\s*@end\w+/i.test(lines[last])) return undefined;
+    let start = lines[first].trim().match(/^@start([a-z]+)/);
+    if (!start || !lines[last].trim().startsWith("@end" + start[1])) return undefined;
+    if (lines.slice(first + 1, last).some(line => /^\s*@(start|end)[a-z]/.test(line))) return undefined;
     lines[first] = lines[first].trim();
     lines[last] = lines[last].trim();
     return lines.join("\n");

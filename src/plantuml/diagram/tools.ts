@@ -7,6 +7,17 @@ export function currentDiagram(): Diagram {
     if (editor) return diagramAt(editor.document, editor.selection.anchor.line);
 }
 
+export function nearestDiagram(document: vscode.TextDocument, line: number): Diagram {
+    let diagram = diagramAt(document, line);
+    for (let i = line - 1; !diagram && i >= 0; i--) {
+        if (diagramEndReg.test(document.lineAt(i).text)) diagram = diagramAt(document, i);
+    }
+    for (let i = line + 1; !diagram && i < document.lineCount; i++) {
+        if (diagramStartReg.test(document.lineAt(i).text)) diagram = diagramAt(document, i);
+    }
+    return diagram;
+}
+
 export function diagramAt(document: vscode.TextDocument, lineNumber: number): Diagram
 export function diagramAt(document: vscode.TextDocument, position: vscode.Position): Diagram
 export function diagramAt(document: vscode.TextDocument, para: number | vscode.Position): Diagram {
