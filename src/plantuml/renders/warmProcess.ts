@@ -14,9 +14,18 @@ const DELIMITER = "___PLANTUML_VSCODE_DIAGRAM_END___";
 const STDERR_WAIT = 50;
 // for diagrams of many pages, pages after this render with new processes
 export const MAX_WARM_PAGES = 4;
+const SLOW_RENDER_MS = 3000;
+const WAITING_LOG_MS = 10000;
+
+let log: (message: string) => void = () => { };
+
+export function setWarmProcessLogger(logger: (message: string) => void) {
+    log = logger;
+}
 
 interface Request {
     content: string;
+    started?: number;
     canceled: () => boolean;
     resolve: (out: Buffer) => void;
     reject: (err: RenderError) => void;
@@ -29,8 +38,11 @@ class WarmProcess {
     private stdout: Buffer = Buffer.alloc(0);
     private stderr: string = "";
     private exited: boolean = false;
+    private stopping: boolean = false;
+    private waitingTimer: NodeJS.Timeout = undefined;
 
-    constructor(command: string, args: string[], private onExit: () => void) {
+    constructor(command: string, args: string[], private label: string, private onExit: () => void) {
+        log(`Starting PlantUML for ${label}`);
         this.process = child_process.spawn(command, [...args, "-pipedelimitor", DELIMITER]);
         this.process.stdout.on('data', (chunk: Buffer) => this.onStdout(chunk));
         this.process.stderr.on('data', (chunk: Buffer) => this.stderr += chunk.toString());
@@ -52,6 +64,8 @@ class WarmProcess {
 
     dispose() {
         if (this.exited) return;
+        this.stopping = true;
+        log(`Stopping PlantUML for ${this.label}`);
         this.process.kill();
         this.terminate("PlantUML process is stopped");
     }
@@ -66,6 +80,11 @@ class WarmProcess {
         }
         if (!request) return;
         this.current = request;
+        request.started = Date.now();
+        clearInterval(this.waitingTimer);
+        this.waitingTimer = setInterval(() => {
+            log(`PlantUML is still rendering ${this.label}: ${Math.round((Date.now() - request.started) / 1000)} s`);
+        }, WAITING_LOG_MS);
         this.stdout = Buffer.alloc(0);
         this.stderr = "";
         let content = request.content.endsWith("\n") ? request.content : request.content + "\n";
@@ -91,10 +110,15 @@ class WarmProcess {
             let stderr = this.stderr.replace(/^Picked up .*$/mg, "").trim();
             this.stderr = "";
             this.current = undefined;
-            if (stderr)
+            clearInterval(this.waitingTimer);
+            let elapsed = Date.now() - request.started;
+            if (stderr) {
+                log(`PlantUML reported an error for ${this.label}: ${stderr.split("\n").join(" ")}`);
                 request.reject(<RenderError>{ error: stderr, out: out });
-            else
+            } else {
+                if (elapsed >= SLOW_RENDER_MS) log(`Rendered ${this.label} in ${(elapsed / 1000).toFixed(1)} s`);
                 request.resolve(out);
+            }
             this.next();
         }, STDERR_WAIT);
     }
@@ -102,8 +126,10 @@ class WarmProcess {
     private terminate(reason: string) {
         if (this.exited && !this.current && !this.queue.length) return;
         this.exited = true;
+        clearInterval(this.waitingTimer);
         let stderr = this.stderr.replace(/^Picked up .*$/mg, "").trim();
         let error = <RenderError>{ error: stderr || reason, out: Buffer.alloc(0) };
+        if (!this.stopping) log(`PlantUML for ${this.label} stopped unexpectedly: ${error.error.split("\n").join(" ")}`);
         let requests = this.current ? [this.current, ...this.queue] : this.queue;
         this.current = undefined;
         this.queue = [];
@@ -131,11 +157,11 @@ class WarmProcessPool {
      * render a diagram with a running process for the command line, or a new one.
      * @param canceled checked before the diagram is sent to the process
      */
-    render(command: string, args: string[], content: string, canceled: () => boolean): Promise<Buffer> {
+    render(command: string, args: string[], content: string, label: string, canceled: () => boolean): Promise<Buffer> {
         let key = this.keyOf(command, args);
         let process = this.processes.get(key);
         if (!process) {
-            process = new WarmProcess(command, args, () => {
+            process = new WarmProcess(command, args, label, () => {
                 if (this.processes.get(key) === process) this.processes.delete(key);
             });
             this.processes.set(key, process);
