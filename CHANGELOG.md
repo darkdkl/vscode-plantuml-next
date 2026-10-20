@@ -4,6 +4,9 @@
 
 - Fix: the preview could stop updating while `@enduml` was being typed (`@endu`, `@endum`), with an upper case `@ENDUML`, or with an end line of another diagram type. Such diagrams are rendered by a one-off PlantUML run, like a diagram without `@enduml`
 - The "PlantUML" output notes a diagram without a matching `@end…` line once, not on every update
+- The preview shows the nearest diagram when the cursor is outside of diagrams: the one above the cursor (e.g. on an empty line after `@enduml`), or the first one below. It used to say "No valid diagram found here!"
+- A one-off PlantUML run is stopped when a newer edit replaces it, so typing an unfinished diagram doesn't pile up Java processes
+- Several diagrams sent at once (an unfinished diagram above finished ones) are rendered by a one-off PlantUML run, so the preview can't get an answer meant for another update
 
 ## 2.20.1
 

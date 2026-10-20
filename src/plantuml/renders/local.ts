@@ -119,7 +119,7 @@ class LocalRender implements IRender {
         // stop the processes of previously previewed diagrams
         warmProcesses.retain(java, params.slice(0, MAX_WARM_PAGES));
         let content = pipeContent(diagram.content);
-        let diagramKey = `${diagram.path}:${diagram.start ? diagram.start.line : 0}`;
+        let diagramKey = `${diagram.path}:${diagram.index}`;
         if (content !== undefined) {
             if (this.unpairedDiagram === diagramKey) this.unpairedDiagram = undefined;
         } else if (this.unpairedDiagram !== diagramKey) {
@@ -136,7 +136,7 @@ class LocalRender implements IRender {
                 let label = diagram.pageCount > 1 ? `${fileName}, page ${index + 1}` : fileName;
                 let render: Promise<Buffer> = content !== undefined && index < MAX_WARM_PAGES ?
                     warmProcesses.render(java, pageParams, content, label, () => task.canceled) :
-                    this.renderOnce(java, pageParams, diagram.content);
+                    this.renderOnce(java, pageParams, diagram.content, task);
                 return render
                     .then(
                         out => [...buffers, out],
@@ -147,8 +147,9 @@ class LocalRender implements IRender {
         );
         return task;
     }
-    private renderOnce(java: string, params: string[], content: string): Promise<Buffer> {
+    private renderOnce(java: string, params: string[], content: string, task: RenderTask): Promise<Buffer> {
         let process = child_process.spawn(java, params);
+        task.processes.push(process);
         process.stdin.write(content);
         process.stdin.end();
         return processWrapper(process);
@@ -231,6 +232,7 @@ function pipeContent(content: string): string {
     if (first < 0 || first == last) return undefined;
     let start = lines[first].trim().match(/^@start([a-z]+)/);
     if (!start || !lines[last].trim().startsWith("@end" + start[1])) return undefined;
+    if (lines.slice(first + 1, last).some(line => /^\s*@(start|end)[a-z]/.test(line))) return undefined;
     lines[first] = lines[first].trim();
     lines[last] = lines[last].trim();
     return lines.join("\n");
