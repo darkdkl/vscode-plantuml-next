@@ -150,9 +150,13 @@ class LocalRender implements IRender {
     private renderOnce(java: string, params: string[], content: string, task: RenderTask): Promise<Buffer> {
         let process = child_process.spawn(java, params);
         task.processes.push(process);
+        let failed = new Promise<Buffer>((resolve, reject) =>
+            process.on('error', err => reject(<RenderError>{ error: err.message, out: Buffer.alloc(0) }))
+        );
+        process.stdin.on('error', () => { });
         process.stdin.write(content);
         process.stdin.end();
-        return processWrapper(process);
+        return Promise.race([failed, processWrapper(process)]);
     }
     private checkJava(diagram: Diagram): string {
         if (!config.java) return localize(5, null);

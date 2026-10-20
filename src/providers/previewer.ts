@@ -422,7 +422,7 @@ class Previewer extends vscode.Disposable {
             if (!e || !e.document || !e.document.uri) return;
             this.followEdits(e);
             if (!config.previewAutoUpdate) return;
-            if (e.document.uri.scheme == "plantuml") return;
+            if (e.document.uri.scheme == "plantuml" || e.document.uri.scheme == "output") return;
             lastTimestamp = new Date().getTime();
             setTimeout(() => {
                 if (new Date().getTime() - lastTimestamp >= 400) {
