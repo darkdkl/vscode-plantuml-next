@@ -1,5 +1,10 @@
 # PlantUML Next Changelog
 
+## 2.20.1
+
+- Fix: the preview never finished loading when `@startuml` or `@enduml` was indented, when a diagram had no `@enduml` yet (while typing), or when a file had no `@start`/`@end` lines at all
+- The "PlantUML" output shows what the preview's PlantUML process does: when it starts and stops, rendering errors, slow renders, and a note every 10 s while a render is still running
+
 ## 2.20.0
 
 - Cmd+click (Ctrl+click) an element's name in the editor, or Go to Definition (F12): goes to the element's definition, scrolls the preview to it and flashes it. Works in PlantUML files while the preview is open

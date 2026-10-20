@@ -9,7 +9,10 @@ import { config } from '../config';
 import { localize, extensionPath } from '../common';
 import { addFileIndex } from '../tools';
 import { processWrapper } from './processWrapper';
-import { warmProcesses, MAX_WARM_PAGES } from './warmProcess';
+import { warmProcesses, MAX_WARM_PAGES, setWarmProcessLogger } from './warmProcess';
+import { logMessage } from '../tools';
+
+setWarmProcessLogger(logMessage);
 
 class LocalRender implements IRender {
 
@@ -114,14 +117,18 @@ class LocalRender implements IRender {
         let params = [...Array(diagram.pageCount).keys()].map(index => this.buildParams(diagram, index, "-pipe", format));
         // stop the processes of previously previewed diagrams
         warmProcesses.retain(java, params.slice(0, MAX_WARM_PAGES));
+        let content = pipeContent(diagram.content);
+        if (content === undefined) logMessage(`${diagram.name}: no @start/@end lines, rendering without a running PlantUML process`);
+        let fileName = diagram.path ? path.basename(diagram.path) : diagram.name;
 
         let task = <RenderTask>{ processes: [], canceled: false };
         // pages one at a time, like createTask()
         task.promise = params.reduce(
             (pChain, pageParams, index) => pChain.then(buffers => {
                 if (task.canceled) return buffers;
-                let render: Promise<Buffer> = index < MAX_WARM_PAGES ?
-                    warmProcesses.render(java, pageParams, diagram.content, () => task.canceled) :
+                let label = diagram.pageCount > 1 ? `${fileName}, page ${index + 1}` : fileName;
+                let render: Promise<Buffer> = content !== undefined && index < MAX_WARM_PAGES ?
+                    warmProcesses.render(java, pageParams, content, label, () => task.canceled) :
                     this.renderOnce(java, pageParams, diagram.content);
                 return render
                     .then(
@@ -208,3 +215,15 @@ class LocalRender implements IRender {
     }
 }
 export const localRender = new LocalRender();
+
+function pipeContent(content: string): string {
+    let lines = content.split("\n");
+    let first = lines.findIndex(line => line.trim() !== "");
+    let last = lines.length - 1;
+    while (last > first && lines[last].trim() === "") last--;
+    if (first < 0 || first == last) return undefined;
+    if (!/^\s*@start\w+/i.test(lines[first]) || !/^\s*@end\w+/i.test(lines[last])) return undefined;
+    lines[first] = lines[first].trim();
+    lines[last] = lines[last].trim();
+    return lines.join("\n");
+}

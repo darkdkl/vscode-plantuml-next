@@ -75,6 +75,10 @@ export function showMessagePanel(message: any) {
     outputPanel.show();
 }
 
+export function logMessage(message: string) {
+    outputPanel.appendLine(`[${new Date().toLocaleTimeString()}] ${message}`);
+}
+
 export class StopWatch {
     public startTime: Date
     public endTime: Date
