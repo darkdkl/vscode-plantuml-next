@@ -111,7 +111,7 @@ const noteStartReg = /^\s*(note|legend|rnote|hnote)\b[^:]*$/i;
 const noteEndReg = /^\s*end\s*(note|legend|rnote|hnote)\b/i;
 const actionStartReg = /^\s*(#[^:\s]*)?:/;
 const actionEndReg = /;\s*$/;
-const actorReg = /^\s*:[^:]*:(\s|$)/;
+const actorReg = /^\s*:[^:]*:\s*($|as\s|<<|#)/;
 
 /**
  * the last line of a definition, which may be a "{ ... }" block, or a
