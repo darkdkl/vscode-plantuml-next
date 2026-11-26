@@ -1,5 +1,9 @@
 # PlantUML Next Changelog
 
+## 2.21.1
+
+- Fix: in an action written on several lines, the cursor on a line without its own label (e.g. a line repeated elsewhere in the diagram) highlighted the partition or group around the action and scrolled the preview to its center; it now highlights the action. A Cmd+click on the action selects all of its lines
+
 ## 2.21.0
 
 - Highlighting the element at the editor cursor in the preview (`plantuml.previewHighlightCursor`) and scrolling the preview to it (`plantuml.previewFollowCursor`) are on by default
