@@ -109,6 +109,10 @@ function nameMatches(text: string, name: string): boolean {
 
 const noteStartReg = /^\s*(note|legend|rnote|hnote)\b[^:]*$/i;
 const noteEndReg = /^\s*end\s*(note|legend|rnote|hnote)\b/i;
+const actionStartReg = /^\s*(#[^:\s]*)?:/;
+const actionEndReg = /;\s*$/;
+const actorReg = /^\s*:[^:]*:\s*($|as\s|<<|#)/;
+const statementReg = /-+>|<-+|\.+>|<\.+|^\s*\(/;
 
 /**
  * the last line of a definition, which may be a "{ ... }" block, or a
@@ -118,6 +122,17 @@ function blockEnd(document: vscode.TextDocument, line: number, maxLine: number):
     if (noteStartReg.test(document.lineAt(line).text)) {
         for (let i = line + 1; i <= maxLine; i++) {
             if (noteEndReg.test(document.lineAt(i).text)) return i;
+        }
+        return line;
+    }
+    let first = document.lineAt(line).text;
+    if (actionStartReg.test(first) && !actionEndReg.test(first)) {
+        let actorLike = actorReg.test(first);
+        for (let i = line + 1; i <= maxLine; i++) {
+            let text = document.lineAt(i).text;
+            if (actionStartReg.test(text)) return line;
+            if (actorLike && statementReg.test(text)) return line;
+            if (actionEndReg.test(text)) return i;
         }
         return line;
     }

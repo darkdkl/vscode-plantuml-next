@@ -5,6 +5,7 @@
 
 const SOURCE_NAV_STYLE = `
 :host-context(.source-nav) [data-source-line] { cursor: pointer; }
+:host-context(.source-nav) rect[data-source-line], :host-context(.source-nav) polygon[data-source-line] { pointer-events: visible; }
 .source-highlight {
     filter: drop-shadow(0 0 var(--source-glow-1) #0089c9) drop-shadow(0 0 var(--source-glow-2) #0089c9);
 }
@@ -33,14 +34,18 @@ function addSourceNavigation(vscode) {
     // fires "contextmenu" instead of "click", so navigate on "mouseup".
     let isNavClick = e => (e.metaKey || e.ctrlKey) && (e.button == 0 || (e.button == 2 && e.ctrlKey));
 
-    // inline SVGs are in a shadow root, e.target is the host
     let sourceElementOf = e => {
         if (!isNavClick(e)) return undefined;
-        for (let el of e.composedPath()) {
-            if (el === imgContainer) break;
-            if (el instanceof SVGElement && el.hasAttribute("data-source-line")) return el;
+        let root = sourceRoot();
+        if (!root) return undefined;
+        let frame = undefined;
+        for (let el of root.elementsFromPoint(e.clientX, e.clientY)) {
+            let marked = el instanceof SVGElement ? el.closest("[data-source-line]") : null;
+            if (!marked) continue;
+            if (el !== marked || getComputedStyle(el).fill !== "none") return marked;
+            if (!frame) frame = marked;
         }
-        return undefined;
+        return frame;
     }
 
     // capture: stop the event before zoom, selection and links see any part of it

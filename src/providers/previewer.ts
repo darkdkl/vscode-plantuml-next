@@ -7,6 +7,7 @@ import { RenderTask } from '../plantuml/renders/interfaces'
 import { Diagram } from '../plantuml/diagram/diagram';
 import { diagramsOf, nearestDiagram, diagramAt } from '../plantuml/diagram/tools';
 import { SourceMap, SourceEntity } from '../plantuml/diagram/sourceMap';
+import { markTextSourceLines } from '../plantuml/diagram/textSourceLines';
 import { config } from '../plantuml/config';
 import { localize, extensionPath, languageid } from '../plantuml/common';
 import { parseError, calculateExportPath, addFileIndex, showMessagePanel, fileToBase64, logMessage } from '../plantuml/tools';
@@ -33,6 +34,7 @@ class Previewer extends vscode.Disposable {
     private taskKilling: boolean;
     private updateQueued: boolean = false;
     private queuedProcessingTip: boolean = false;
+    private labelError: string = undefined;
 
     private images: string[];
     private imageError: string;
@@ -223,6 +225,16 @@ class Previewer extends vscode.Disposable {
         }
         return changed;
     }
+    private markLabels(svg: Buffer, diagram: Diagram): Buffer {
+        try {
+            return Buffer.from(markTextSourceLines(svg.toString(), diagram.content));
+        } catch (error) {
+            let message = `${diagram.name}: navigation by label failed, ${error}`;
+            if (message !== this.labelError) logMessage(message);
+            this.labelError = message;
+            return svg;
+        }
+    }
     private keptDiagram(document: vscode.TextDocument): Diagram {
         if (!this.rendered || this.rendered.document !== document) return undefined;
         let line = this.rendered.start.line;
@@ -250,7 +262,7 @@ class Previewer extends vscode.Disposable {
         return diagramAt(editor.document, line) || this.keptDiagram(editor.document) || nearestDiagram(editor.document, line);
     }
     private async doUpdate(processingTip: boolean) {
-        let diagram = this.targetDiagram();
+        let diagram = this.targetDiagram() || this.displayedDiagram();
         if (!diagram) {
             this.pendingReveal = undefined;
             this.status = previewStatus.error;
@@ -283,6 +295,7 @@ class Previewer extends vscode.Disposable {
                     let isPNG = buf.slice(0, sigPNG.length).equals(sigPNG);
                     let isSVG = (buf.slice(0, 256).indexOf('<svg') >= 0);
 
+                    if (isSVG && config.previewLabelNavigation) buf = this.markLabels(buf, diagram);
                     if (isPNG || isSVG) {
                         let b64 = buf.toString('base64');
                         if (!b64) return p;
@@ -348,6 +361,10 @@ class Previewer extends vscode.Disposable {
             if (!e.affectsConfiguration("plantuml.previewHighlightCursor") && !e.affectsConfiguration("plantuml.previewFollowCursor")) return;
             this.highlighted = null;
             this.syncHighlight();
+        });
+        this._disposables.push(disposable);
+        disposable = vscode.workspace.onDidChangeConfiguration(e => {
+            if (e.affectsConfiguration("plantuml.previewLabelNavigation") && this.displayed) this.update(false);
         });
         this._disposables.push(disposable);
 
