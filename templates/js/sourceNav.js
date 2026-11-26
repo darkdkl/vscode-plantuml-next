@@ -188,6 +188,20 @@ function applySourceHighlight() {
     for (let el of elements) el.classList.add("source-highlight");
 }
 
+function joinSourceAnimation() {
+    let elements = sourceHighlightElements();
+    let leader = elements.find(el => el.classList.contains("flash") || el.classList.contains("flash-out"));
+    if (!leader) return;
+    let name = leader.classList.contains("flash-out") ? "flash-out" : "flash";
+    let animation = leader.getAnimations()[0];
+    if (!animation) return;
+    for (let el of elements) {
+        if (el.classList.contains(name)) continue;
+        el.classList.add(name);
+        for (let a of el.getAnimations()) a.currentTime = animation.currentTime;
+    }
+}
+
 function revealSourceHighlight(flash, transient) {
     let rect = sourceHighlightRect();
     if (!rect) return;

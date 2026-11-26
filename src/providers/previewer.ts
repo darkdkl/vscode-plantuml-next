@@ -7,7 +7,6 @@ import { RenderTask } from '../plantuml/renders/interfaces'
 import { Diagram } from '../plantuml/diagram/diagram';
 import { diagramsOf, nearestDiagram, diagramAt } from '../plantuml/diagram/tools';
 import { SourceMap, SourceEntity } from '../plantuml/diagram/sourceMap';
-import { markTextSourceLines } from '../plantuml/diagram/textSourceLines';
 import { config } from '../plantuml/config';
 import { localize, extensionPath, languageid } from '../plantuml/common';
 import { parseError, calculateExportPath, addFileIndex, showMessagePanel, fileToBase64, logMessage } from '../plantuml/tools';
@@ -34,6 +33,7 @@ class Previewer extends vscode.Disposable {
     private taskKilling: boolean;
     private updateQueued: boolean = false;
     private queuedProcessingTip: boolean = false;
+    private labelSource: string = undefined;
     private labelError: string = undefined;
 
     private images: string[];
@@ -85,6 +85,7 @@ class Previewer extends vscode.Disposable {
             imageError: "",
             showSpinner: this.status === previewStatus.processing,
             status: <string>undefined,
+            labelSource: <string>undefined,
         };
         try {
             switch (this.status) {
@@ -93,6 +94,7 @@ class Previewer extends vscode.Disposable {
                     render.pages = this.pagesOf(this.images);
                     render.imageError = this.imageError;
                     render.error = this.error;
+                    render.labelSource = this.labelSource;
                     break;
                 case previewStatus.processing:
                     for (let format of ["svg", "png"]) {
@@ -225,16 +227,6 @@ class Previewer extends vscode.Disposable {
         }
         return changed;
     }
-    private markLabels(svg: Buffer, diagram: Diagram): Buffer {
-        try {
-            return Buffer.from(markTextSourceLines(svg.toString(), diagram.content));
-        } catch (error) {
-            let message = `${diagram.name}: navigation by label failed, ${error}`;
-            if (message !== this.labelError) logMessage(message);
-            this.labelError = message;
-            return svg;
-        }
-    }
     private keptDiagram(document: vscode.TextDocument): Diagram {
         if (!this.rendered || this.rendered.document !== document) return undefined;
         let line = this.rendered.start.line;
@@ -287,6 +279,7 @@ class Previewer extends vscode.Disposable {
                 this.status = previewStatus.default;
                 if (!this.isDisplayed(source.document, source.index)) this.followed = undefined;
                 this.displayed = source;
+                this.labelSource = config.previewLabelNavigation ? diagram.content : undefined;
 
                 this.error = "";
                 this.imageError = "";
@@ -295,7 +288,6 @@ class Previewer extends vscode.Disposable {
                     let isPNG = buf.slice(0, sigPNG.length).equals(sigPNG);
                     let isSVG = (buf.slice(0, 256).indexOf('<svg') >= 0);
 
-                    if (isSVG && config.previewLabelNavigation) buf = this.markLabels(buf, diagram);
                     if (isPNG || isSVG) {
                         let b64 = buf.toString('base64');
                         if (!b64) return p;
@@ -318,6 +310,7 @@ class Previewer extends vscode.Disposable {
                 if (task.canceled) return;
                 this.task = null;
                 this.pendingReveal = undefined;
+                this.labelSource = undefined;
                 this.status = previewStatus.error;
                 let err = parseError(error)[0];
                 this.error = err.error;
@@ -403,6 +396,11 @@ class Previewer extends vscode.Disposable {
                 this.sendRender(true);
             } else if (e.message.action == "revealSource") {
                 this.revealSource(e.message.line).catch(e => showMessagePanel(e));
+            } else if (e.message.action == "labelError") {
+                let diagram = this.displayedDiagram();
+                let message = `${diagram ? diagram.name : "preview"}: navigation by label failed, ${e.message.error}`;
+                if (message !== this.labelError) logMessage(message);
+                this.labelError = message;
             } else if (e.message.action == "sourceEntities") {
                 // the page is switched or updated, and has no highlight
                 this.sourceEntities = e.message.entities || [];

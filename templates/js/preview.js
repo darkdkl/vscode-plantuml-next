@@ -88,6 +88,7 @@ async function render(msg) {
     let hasError = !!(msg.error && msg.error.trim());
     let errorImage = !pages.length && hasError && !!msg.imageError;
     let images = errorImage ? [{ src: msg.imageError }] : pages;
+    if (!errorImage) images.forEach(i => i.labelSource = msg.labelSource);
 
     // decode new images first, the current ones are shown meanwhile
     await Promise.all(images.map(i => switcher.prepare(i)));
@@ -154,6 +155,11 @@ window.addEventListener("load", () => {
     window.addEventListener("message", e => {
         if (e.data && e.data.action == "render") render(e.data);
     });
+    for (let type of ["resize", "focus", "visibilitychange"]) {
+        window.addEventListener(type, () => {
+            if (switcher.markLabels()) reportSourceEntities();
+        });
+    }
     if (vscode) vscode.postMessage({ action: "ready" });
 });
 window.addEventListener(

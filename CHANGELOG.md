@@ -1,5 +1,9 @@
 # PlantUML Next Changelog
 
+## 2.22.0
+
+- Navigation by label (experimental, `plantuml.previewLabelNavigation`) works on the diagram as the preview shows it, instead of on the SVG text: shapes are measured by the browser, so a label is matched to the shape it really lies in (a condition diamond, a note, a rounded box), also with transforms. Labels are marked right away; boxes, frames and notes are measured once the preview is idle, so a new picture shows without waiting for them
+
 ## 2.21.1
 
 - Highlighting the element at the editor cursor in the preview (`plantuml.previewHighlightCursor`) and scrolling the preview to it (`plantuml.previewFollowCursor`) are on by default
