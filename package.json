@@ -3,7 +3,7 @@
   "displayName": "PlantUML Next",
   "description": "Rich PlantUML support for Visual Studio Code. A fork of jebbs' PlantUML extension with a faster preview and source navigation.",
   "icon": "images/icon.png",
-  "version": "2.20.2",
+  "version": "2.21.0",
   "publisher": "dark-dmake",
   "engines": {
     "vscode": "^1.57.0"
@@ -334,14 +334,23 @@
         "plantuml.previewHighlightCursor": {
           "type": "boolean",
           "scope": "application",
-          "default": false,
+          "default": true,
           "description": "%plantuml.configuration.previewHighlightCursor%"
         },
         "plantuml.previewFollowCursor": {
           "type": "boolean",
           "scope": "application",
-          "default": false,
+          "default": true,
           "description": "%plantuml.configuration.previewFollowCursor%"
+        },
+        "plantuml.previewLabelNavigation": {
+          "type": "boolean",
+          "scope": "application",
+          "default": false,
+          "tags": [
+            "experimental"
+          ],
+          "description": "%plantuml.configuration.previewLabelNavigation%"
         },
         "plantuml.previewSnapIndicators": {
           "type": "boolean",

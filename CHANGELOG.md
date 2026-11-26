@@ -1,5 +1,10 @@
 # PlantUML Next Changelog
 
+## 2.21.0
+
+- Highlighting the element at the editor cursor in the preview (`plantuml.previewHighlightCursor`) and scrolling the preview to it (`plantuml.previewFollowCursor`) are on by default
+- Experimental, off by default (setting `plantuml.previewLabelNavigation`): source navigation where PlantUML doesn't mark source lines: activity diagrams (actions, `if`/`while`/`repeat`/`switch` conditions, `case` branches, partitions, notes, swimlanes), titles of sequence diagram fragments (`alt`, `else`, `group`, `loop`, …) and mind maps. An element is found by its label: a label that appears in exactly one line of the diagram leads to that line, so Cmd+click in the preview, going to the preview from the editor, and highlighting the element at the cursor work for it. Elements without a label, repeated labels and labels built by the preprocessor stay not navigable; a diagram's background and frames around other elements don't light up
+
 ## 2.20.2
 
 - Fix: with the "PlantUML" output open, each new line in it re-rendered the preview, so a slow diagram could be rendered over and over and a very slow one never finished

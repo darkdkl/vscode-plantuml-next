@@ -115,6 +115,10 @@ class Config extends ConfigReader {
         return this.read<boolean>('previewFollowCursor');
     }
 
+    get previewLabelNavigation(): boolean {
+        return this.read<boolean>('previewLabelNavigation');
+    }
+
     get previewSnapIndicators(): boolean {
         return this.read<boolean>('previewSnapIndicators');
     }

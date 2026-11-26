@@ -22,6 +22,7 @@
 	"plantuml.configuration.previewKeepAlive": "Keep PlantUML processes running for the preview (local render only), which makes preview updates much faster. Disable it if the preview behaves differently from exporting.",
 	"plantuml.configuration.previewHighlightCursor": "Highlight the element at the editor cursor in the preview.",
 	"plantuml.configuration.previewFollowCursor": "Scroll the preview to the element at the editor cursor, when the element is out of view. Without plantuml.previewHighlightCursor the element flashes for a few seconds when the cursor moves to it.",
+	"plantuml.configuration.previewLabelNavigation": "(Experimental) Navigate between the preview and the source also where PlantUML doesn't mark source lines: activity diagrams, titles of sequence diagram fragments, mind maps. An element is found by its label, if the label appears in exactly one line of the diagram.",
 	"plantuml.configuration.previewSnapIndicators": "Decides if to display the snap indicators in the preview window.",
 	"plantuml.configuration.previewSwapMouseButtons": "Swaps left and right mouse buttons used for zooming or panning",
 	"plantuml.configuration.server": "Plantuml server to generate UML diagrams on-the-fly. You may use official server https://www.plantuml.com/plantuml if you feel OK to share data with it.",
