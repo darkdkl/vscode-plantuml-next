@@ -71,6 +71,7 @@ class Switcher {
         }
         this.pInfo.innerText = String.format(this.pInfoTpl, page, this.images.length);
         this.current = page;
+        this.markLabels();
         reportSourceEntities();
 
         // restore page status, once the image size is known
@@ -93,6 +94,43 @@ class Switcher {
         else
             this.image.addEventListener("load", restore, { once: true });
     }
+    markLabels() {
+        let image = this.images[this.current - 1];
+        if (!image || !image.svgImage || !image.labelSource) return false;
+        let marked = false;
+        if (!image.labels) {
+            try {
+                image.labels = markLabelTexts(image.svgImage.shadowRoot, image.labelSource);
+            } catch (error) {
+                image.labels = [];
+                image.framesMarked = true;
+                reportLabelError(error);
+                return false;
+            }
+            marked = true;
+        }
+        if (!image.framesMarked && !image.framesScheduled) this.scheduleLabelFrames(image);
+        return marked;
+    }
+    scheduleLabelFrames(image) {
+        image.framesScheduled = true;
+        let run = () => {
+            image.framesScheduled = false;
+            if (image.framesMarked || this.images[this.current - 1] !== image) return;
+            let root = image.svgImage.shadowRoot;
+            if (!hasLabelLayout(root)) return;
+            image.framesMarked = true;
+            try {
+                markLabelFrames(root, image.labels);
+            } catch (error) {
+                reportLabelError(error);
+            }
+            applySourceHighlight();
+            joinSourceAnimation();
+        };
+        if (window.requestIdleCallback) requestIdleCallback(run, { timeout: 500 });
+        else setTimeout(run, 50);
+    }
     showSVGImage(svgImage) {
         if (this.svgImage === svgImage) return;
         if (this.svgImage) this.svgImage.remove();
@@ -107,6 +145,11 @@ class Switcher {
         }
         zoomer.img = svgImage || this.image;
     }
+}
+
+function reportLabelError(error) {
+    console.log("navigation by label failed:", error);
+    if (typeof vscode !== "undefined" && vscode) vscode.postMessage({ action: "labelError", error: String(error) });
 }
 
 // returns the inner html of a "<map>...</map>" string
